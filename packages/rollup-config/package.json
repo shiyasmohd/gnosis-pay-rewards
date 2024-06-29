@@ -1,0 +1,25 @@
+{
+  "name": "@karpatkey/rollup-config",
+  "description": "Rollup config. Use this library to swiftly create a rollup config for your library.",
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "dependencies": {
+    "rollup": "^3.20.2",
+    "@rollup/plugin-commonjs": "^24.1.0",
+    "@rollup/plugin-image": "^3.0.2",
+    "@rollup/plugin-json": "^6.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.2",
+    "@rollup/plugin-typescript": "^11.1.0",
+    "@svgr/rollup": "^8.1.0",
+    "rollup-plugin-dts": "^5.3.0",
+    "rollup-plugin-exclude-dependencies-from-bundle": "^1.1.23",
+    "rollup-plugin-import-css": "^3.2.1",
+    "rollup-plugin-peer-deps-external": "^2.2.4"
+  },
+  "files": [
+    "index.js",
+    "utils.js",
+    "config.js"
+  ]
+}
