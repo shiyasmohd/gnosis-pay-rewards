@@ -1,0 +1,44 @@
+name: CI
+on:
+  push:
+    branches: ['main', 'development']
+  pull_request:
+    types: [opened, synchronize]
+jobs:
+  ci:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - uses: pnpm/action-setup@v2
+        with:
+          version: latest
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - name: Setup Foundry Toolchain
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Install dependencies
+        run: pnpm i
+      - name: Codegen
+        run: npx turbo codegen
+      - name: Build
+        run: npx turbo build
+        # These are dummy variables to satisfy next.js build
+        env:
+          REACT_APP_ALCHEMY_KEY: test
+          MONGODB_URI: test
+          WALLET_LABELS_API_KEY: test
+          ETHERSCAN_API_KEY_ETHEREUM: test
+          ETHERSCAN_API_KEY_GNOSIS: test
+      - name: Lint
+        run: pnpm lint
+      - name: Test
+        run: pnpm test
