@@ -1,6 +1,5 @@
 import './sentry.js'; // imported first to setup sentry
 
-import createDebugger from 'debug';
 import { Address, PublicClient, Transport, erc20Abi, formatEther } from 'viem';
 
 import { gnosisPayStartBlock, gnoTokenAddress, calcRewardAmount, bigMath } from '@karpatkey/gnosis-pay-rewards-sdk';
@@ -90,7 +89,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
 
       if (gnosisPaySafeGnoTokenBalance > BigInt(0)) {
         consoleLogStrings.push(
-          `They have ${formattedGnoBalance} GNO and will receive ${gnoRewardsAmount} GNO rewards (@${gnoRewardsBips} BPS).`
+          `They have ${formattedGnoBalance} GNO and will receive ${gnoRewardsAmount} GNO rewards (@${gnoRewardsBips} BPS).`,
         );
       }
 
@@ -116,7 +115,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
     // Cooldown for 20 seconds if we're within a distance of 10 blocks
     if (distanceToLatestBlock < 10n) {
       console.log(
-        `Cooldown for 20 seconds becaure toBlockNumber (#${toBlockNumber}) is within 10 blocks of latestBlock (#${latestBlock.number})`
+        `Cooldown for 20 seconds becaure toBlockNumber (#${toBlockNumber}) is within 10 blocks of latestBlock (#${latestBlock.number})`,
       );
 
       const targetBlockNumber = toBlockNumber + indexBlockSize * 30n;
@@ -131,6 +130,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
   }
 }
 
-startIndexing(gnosisChainPublicClient);
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+startIndexing(gnosisChainPublicClient).catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -4,7 +4,6 @@ import createExpressApp from 'express';
 import cors from 'cors'; // no time for TS atm
 import { createServer } from 'node:http';
 import { Server as SocketIoServer } from 'socket.io';
-import { SOCKET_IO_SERVER_PORT } from './config/env.js';
 
 export const express = createExpressApp();
 
