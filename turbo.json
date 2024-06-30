@@ -1,0 +1,57 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "codegen": {
+      "outputs": []
+    },
+    "build": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "format": {
+      "outputs": []
+    },
+    "dev": {
+      "cache": false
+    },
+    "@karpatkey/contracts#build": {
+      "outputs": ["out", "artifacts"]
+    },
+    "@karpatkey/gnosis-pay-rewards-app#build": {
+      "dependsOn": ["@karpatkey/gnosis-pay-rewards-sdk#build"],
+      "env": [
+        "ALCHEMY_KEY",
+        "MONGODB_URI",
+        "WALLET_LABELS_API_KEY",
+        "ETHERSCAN_API_KEY_ETHEREUM",
+        "ETHERSCAN_API_KEY_GNOSIS",
+        "ETHERSCAN_API_KEY_ARBITRUM",
+        "ETHERSCAN_API_KEY_OPTIMISM",
+        "ETHERSCAN_API_KEY_AVAX",
+        "ETHERSCAN_API_KEY_BSC",
+        "ETHERSCAN_API_KEY_POLYGON",
+        "GNO_LCMM_SOCKET_URL"
+      ]
+    },
+    "@karpatkey/gnosis-pay-rewards-indexer": {
+      "dependsOn": ["@karpatkey/gnosis-pay-rewards-sdk#build"],
+      "env": [
+        "NODE_ENV",
+        "IS_DOCKER",
+        "HTTP_SERVER_PORT",
+        "HTTP_SERVER_HOST",
+        "SOCKET_IO_SERVER_PORT",
+        "JSON_RPC_PROVIDER_GNOSIS",
+        "WEBSOCKET_JSON_RPC_PROVIDER_GNOSIS",
+        "SENTRY_DSN"
+      ]
+    }
+  },
+  "globalDependencies": [".env", "tsconfig.json"],
+  "globalEnv": ["NODE_ENV", "MONGO_URI"]
+}
