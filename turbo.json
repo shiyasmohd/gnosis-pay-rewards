@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "pipeline": {
+  "tasks": {
     "codegen": {
       "outputs": []
     },
@@ -53,5 +53,5 @@
     }
   },
   "globalDependencies": [".env", "tsconfig.json"],
-  "globalEnv": ["NODE_ENV", "MONGO_URI"]
+  "globalEnv": ["NODE_ENV"]
 }
