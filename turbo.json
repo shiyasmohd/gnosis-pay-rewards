@@ -48,7 +48,8 @@
         "SOCKET_IO_SERVER_PORT",
         "JSON_RPC_PROVIDER_GNOSIS",
         "WEBSOCKET_JSON_RPC_PROVIDER_GNOSIS",
-        "SENTRY_DSN"
+        "SENTRY_DSN",
+        "MONGODB_URI"
       ]
     }
   },
