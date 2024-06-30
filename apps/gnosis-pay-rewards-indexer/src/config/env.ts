@@ -10,7 +10,7 @@ if (env.NODE_ENV === 'development') {
   config({ path: '.env.development' });
 }
 
-const requiredKeys = ['JSON_RPC_PROVIDER_GNOSIS', 'SENTRY_DSN'];
+const requiredKeys = ['JSON_RPC_PROVIDER_GNOSIS', 'SENTRY_DSN', 'MONGODB_URI'];
 
 // Check if all required keys are set
 requiredKeys.forEach((key) => {
@@ -44,8 +44,8 @@ export const SOCKET_IO_SERVER_PORT = env.SOCKET_IO_SERVER_PORT ? parseInt(env.SO
 /**
  * MongoDB
  */
-export const MONGO_URI = env.MONGO_URI as string;
-export const MONGO_DEBUG = env.MONGO_DEBUG === 'true' ? true : false;
+export const MONGODB_URI = env.MONGODB_URI as string;
+export const MONGODB_DEBUG = env.MONGODB_DEBUG === 'true' ? true : false;
 
 /**
  * Sentry Debug DSN

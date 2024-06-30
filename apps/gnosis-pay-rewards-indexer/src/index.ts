@@ -2,19 +2,31 @@ import './sentry.js'; // imported first to setup sentry
 
 import { Address, PublicClient, Transport, erc20Abi, formatEther } from 'viem';
 
-import { gnosisPayStartBlock, gnoTokenAddress, calcRewardAmount, bigMath } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  gnosisPayStartBlock,
+  gnoTokenAddress,
+  calcRewardAmount,
+  bigMath,
+  getGnosisPayTokenByAddress,
+} from '@karpatkey/gnosis-pay-rewards-sdk';
 import { gnosisChainPublicClient } from './publicClient.js';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
-import { getGnosisPayToken } from './getGnosisPayToken.js';
+import { migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
 import { clampToBlockRange } from './utils.js';
 import { startServer } from './server.js';
-import { SOCKET_IO_SERVER_PORT } from './config/env.js';
+import { SOCKET_IO_SERVER_PORT, MONGODB_URI } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
 import { gnosis } from 'viem/chains';
+import { dbConnect } from './database/dbConnect.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
 
+const mongooseConnection = await dbConnect(MONGODB_URI);
+
 async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
+  console.log('Migrating Gnosis Pay tokens to database');
+  await migrateGnosisPayTokensToDatabase(mongooseConnection);
+
   const socketIoServer = startServer({ httpPort: SOCKET_IO_SERVER_PORT, httpHost: '0.0.0.0' });
 
   console.log('Starting indexing');
@@ -49,7 +61,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
       const { blockNumber } = log;
       const { account: rolesModuleAddress, amount: spendAmountRaw, asset } = log.args;
 
-      const token = getGnosisPayToken(asset);
+      const token = getGnosisPayTokenByAddress(asset);
 
       if (!token) {
         console.warn(`Unknown token: ${asset}`);
@@ -89,7 +101,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
 
       if (gnosisPaySafeGnoTokenBalance > BigInt(0)) {
         consoleLogStrings.push(
-          `They have ${formattedGnoBalance} GNO and will receive ${gnoRewardsAmount} GNO rewards (@${gnoRewardsBips} BPS).`,
+          `They have ${formattedGnoBalance} GNO and will receive ${gnoRewardsAmount} GNO rewards (@${gnoRewardsBips} BPS).`
         );
       }
 
@@ -115,7 +127,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
     // Cooldown for 20 seconds if we're within a distance of 10 blocks
     if (distanceToLatestBlock < 10n) {
       console.log(
-        `Cooldown for 20 seconds becaure toBlockNumber (#${toBlockNumber}) is within 10 blocks of latestBlock (#${latestBlock.number})`,
+        `Cooldown for 20 seconds becaure toBlockNumber (#${toBlockNumber}) is within 10 blocks of latestBlock (#${latestBlock.number})`
       );
 
       const targetBlockNumber = toBlockNumber + indexBlockSize * 30n;
