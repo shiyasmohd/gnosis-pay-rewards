@@ -1,7 +1,5 @@
 import './sentry.js'; // imported first to setup sentry
-
 import { Address, PublicClient, Transport, erc20Abi, formatEther } from 'viem';
-
 import {
   gnosisPayStartBlock,
   gnoTokenAddress,
@@ -9,25 +7,37 @@ import {
   bigMath,
   getGnosisPayTokenByAddress,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { gnosis } from 'viem/chains';
 import { gnosisChainPublicClient } from './publicClient.js';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
 import { migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
 import { clampToBlockRange } from './utils.js';
-import { startServer } from './server.js';
+import { buildSocketIoServer, buildExpressApp } from './server.js';
 import { SOCKET_IO_SERVER_PORT, MONGODB_URI } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
-import { gnosis } from 'viem/chains';
-import { dbConnect } from './database/dbConnect.js';
+import { createConnection } from './database/createConnection.js';
+import { getPendingRewardModel } from './database/pendingReward.js';
+import { getBlockByNumber } from './getBlockByNumber.js';
+import { addHttpRoutes } from './addHttpRoutes.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
 
-const mongooseConnection = await dbConnect(MONGODB_URI);
-
 async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
+  // Connect to the database
+  const mongooseConnection = await createConnection(MONGODB_URI);
+
   console.log('Migrating Gnosis Pay tokens to database');
   await migrateGnosisPayTokensToDatabase(mongooseConnection);
 
-  const socketIoServer = startServer({ httpPort: SOCKET_IO_SERVER_PORT, httpHost: '0.0.0.0' });
+  const pendingRewardModel = getPendingRewardModel(mongooseConnection);
+
+  const expressApp = addHttpRoutes({
+    expressApp: buildExpressApp(),
+    pendingRewardModel,
+  });
+  const { socketIoServer } = buildSocketIoServer(expressApp);
+
+  socketIoServer.listen(SOCKET_IO_SERVER_PORT);
 
   console.log('Starting indexing');
 
@@ -58,13 +68,23 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
     });
 
     for (const log of logs) {
-      const { blockNumber } = log;
-      const { account: rolesModuleAddress, amount: spendAmountRaw, asset } = log.args;
+      const { blockNumber, transactionHash } = log;
+      const { account: rolesModuleAddress, amount: spendAmountRaw, asset: spentTokenAddress } = log.args;
+      // Verify that the token is registered as GP token like EURe, GBPe, and USDC
+      const spentToken = getGnosisPayTokenByAddress(spentTokenAddress);
 
-      const token = getGnosisPayTokenByAddress(asset);
+      if (!spentToken) {
+        console.warn(`Unknown token: ${spentTokenAddress}`);
+        continue;
+      }
 
-      if (!token) {
-        console.warn(`Unknown token: ${asset}`);
+      const { data: block } = await getBlockByNumber({ client, blockNumber: log.blockNumber });
+
+      if (!block) {
+        /**
+         * @todo make this a retryable error
+         */
+        console.error(`Block #${log.blockNumber} not found`);
         continue;
       }
 
@@ -91,12 +111,12 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
         blockNumber,
       });
 
-      const formattedGnoBalance = Number(formatEther(gnosisPaySafeGnoTokenBalance));
+      const formattedGnoBalance = formatEther(gnosisPaySafeGnoTokenBalance);
 
-      const { amount: gnoRewardsAmount, bips: gnoRewardsBips } = calcRewardAmount(formattedGnoBalance);
+      const { amount: gnoRewardsAmount, bips: gnoRewardsBips } = calcRewardAmount(Number(formattedGnoBalance));
 
       const consoleLogStrings = [
-        `GP Safe: ${gnosisPaySafeAddress} spent ${formatEther(spendAmountRaw)} ${token?.symbol} @ ${blockNumber}`,
+        `GP Safe: ${gnosisPaySafeAddress} spent ${formatEther(spendAmountRaw)} ${spentToken.symbol} @ ${blockNumber}`,
       ];
 
       if (gnosisPaySafeGnoTokenBalance > BigInt(0)) {
@@ -107,14 +127,26 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
 
       console.log(consoleLogStrings.join('\n'));
 
-      // Emit to the UI
-      socketIoServer.emit('spend', {
-        spendAmount: Number(spendAmountRaw),
-        token,
-        gnosisPaySafeAddress,
-        gnoRewardsAmount,
-        gnoRewardsBps: gnoRewardsBips,
-      });
+      try {
+        const pendingRewardDocument = await new pendingRewardModel({
+          _id: `${blockNumber}-${rolesModuleAddress}-${spentTokenAddress}`,
+          gnosisPaySafeAddress,
+          gnoRewardsAmount,
+          gnoRewardsBps: gnoRewardsBips,
+          blockNumber,
+          transactionHash,
+          gnoTokenBalance: formattedGnoBalance,
+          safeAddress: gnosisPaySafeAddress,
+          spentAmount: spendAmountRaw.toString(),
+          spentToken: spentTokenAddress,
+          blockTimestamp: block.timestamp,
+        }).save();
+
+        // Emit to the UI
+        socketIoServer.emit('spend', pendingRewardDocument.toJSON());
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     // Move to the next block range
