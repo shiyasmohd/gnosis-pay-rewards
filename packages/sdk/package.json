@@ -67,5 +67,8 @@
     "ts-node": "^10.9.1",
     "tslib": "^2.5.0",
     "typescript": "^5.4.5"
+  },
+  "peerDependencies": {
+    "socket.io": "^4.7.5"
   }
 }
