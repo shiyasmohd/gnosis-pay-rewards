@@ -8,6 +8,9 @@ export type SerializableErc20TokenType = {
   chainId: number;
 };
 
+/**
+ * List of token used to process payments in Gnosis Pay as of July 1, 2024
+ */
 export const gnosisPayTokens: SerializableErc20TokenType[] = [
   {
     symbol: 'EURe',
@@ -21,6 +24,20 @@ export const gnosisPayTokens: SerializableErc20TokenType[] = [
     address: '0x5cb9073902f2035222b9749f8fb0c9bfe5527108',
     decimals: 18,
     name: 'Monerium GBP emoney (GBPe)',
+    chainId: 100,
+  },
+  {
+    symbol: 'USDC.e',
+    address: '0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0',
+    decimals: 6,
+    name: 'Bridged USDC (Gnosis)',
+    chainId: 100,
+  },
+  {
+    symbol: 'USDC',
+    address: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83',
+    decimals: 6,
+    name: 'USDC',
     chainId: 100,
   },
 ];
