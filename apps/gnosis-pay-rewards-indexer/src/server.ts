@@ -37,7 +37,7 @@ export function buildSocketIoServer(expressApp: Express) {
   const socketIoServer = new SocketIoServer<
     GnosisPayRewardsClientToServerEventsType,
     GnosisPayRewardsServerToClientEventsType,
-    Record<string, unknown>
+    GnosisPayRewardsInterServerEventsType
   >(httpServer, {
     cors: {
       origin: '*',

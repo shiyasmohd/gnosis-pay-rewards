@@ -37,6 +37,21 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
   });
   const { socketIoServer } = buildSocketIoServer(expressApp);
 
+  // Emit the 10 recent pending rewards to the UI when a client connects
+  socketIoServer.on('connection', async (socketClient) => {
+    socketClient.on('disconnect', () => {
+      console.log('Client disconnected');
+    });
+
+    socketClient.on('getRecentPendingRewards', async (limit: number) => {
+      const pendingRewards = await pendingRewardModel.find().limit(limit).sort({ blockNumber: -1 });
+      socketClient.emit(
+        'recentPendingRewards',
+        pendingRewards.map((r) => r.toJSON())
+      );
+    });
+  });
+
   socketIoServer.listen(SOCKET_IO_SERVER_PORT);
 
   console.log('Starting indexing');
@@ -143,7 +158,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
         }).save();
 
         // Emit to the UI
-        socketIoServer.emit('spend', pendingRewardDocument.toJSON());
+        socketIoServer.emit('newPendingReward', pendingRewardDocument.toJSON());
       } catch (e) {
         console.error(e);
       }
