@@ -18,18 +18,18 @@ const pendingRewardSchema = new Schema<PendingRewardFieldsTypeUnpopulated>(
       required: true,
     },
     blockTimestamp: {
-      type: Date,
+      type: Number,
       required: true,
     },
     transactionHash: {
       type: String,
       required: true,
     },
-    gnoTokenBalance: {
+    spentAmount: {
       type: String,
       required: true,
     },
-    spentAmount: {
+    gnoBalance: {
       type: String,
       required: true,
     },
@@ -49,7 +49,7 @@ const pendingRewardSchema = new Schema<PendingRewardFieldsTypeUnpopulated>(
   },
   {
     _id: false,
-  },
+  }
 );
 
 const modelName = 'PendingReward' as const;

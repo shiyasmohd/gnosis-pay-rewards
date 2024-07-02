@@ -6,6 +6,7 @@ import {
   calcRewardAmount,
   bigMath,
   getGnosisPayTokenByAddress,
+  PendingRewardFieldsTypePopulated,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { gnosis } from 'viem/chains';
 import { gnosisChainPublicClient } from './publicClient.js';
@@ -30,6 +31,8 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
   await migrateGnosisPayTokensToDatabase(mongooseConnection);
 
   const pendingRewardModel = getPendingRewardModel(mongooseConnection);
+  // Clean up the database
+  await pendingRewardModel.deleteMany();
 
   const expressApp = addHttpRoutes({
     expressApp: buildExpressApp(),
@@ -44,7 +47,11 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
     });
 
     socketClient.on('getRecentPendingRewards', async (limit: number) => {
-      const pendingRewards = await pendingRewardModel.find().limit(limit).sort({ blockNumber: -1 });
+      const pendingRewards = await pendingRewardModel
+        .find()
+        .populate('spentToken')
+        .limit(limit)
+        .sort({ blockNumber: -1 });
       socketClient.emit(
         'recentPendingRewards',
         pendingRewards.map((r) => r.toJSON())
@@ -83,7 +90,6 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
     });
 
     for (const log of logs) {
-      const { blockNumber, transactionHash } = log;
       const { account: rolesModuleAddress, amount: spendAmountRaw, asset: spentTokenAddress } = log.args;
       // Verify that the token is registered as GP token like EURe, GBPe, and USDC
       const spentToken = getGnosisPayTokenByAddress(spentTokenAddress);
@@ -106,15 +112,15 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
       const gnosisPaySafeAddress = (await gnosisChainPublicClient.readContract({
         abi: [
           {
-            name: 'owner',
+            name: 'avatar',
             outputs: [{ internalType: 'address', name: '', type: 'address' }],
             stateMutability: 'view',
             type: 'function',
           },
         ],
-        functionName: 'owner',
+        functionName: 'avatar',
         address: rolesModuleAddress,
-        blockNumber,
+        blockNumber: log.blockNumber,
       })) as Address;
 
       // Fetch the GNO token balance for the GP Safe at the spend block
@@ -123,7 +129,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
         address: gnoTokenAddress,
         functionName: 'balanceOf',
         args: [gnosisPaySafeAddress],
-        blockNumber,
+        blockNumber: log.blockNumber,
       });
 
       const formattedGnoBalance = formatEther(gnosisPaySafeGnoTokenBalance);
@@ -131,7 +137,9 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
       const { amount: gnoRewardsAmount, bips: gnoRewardsBips } = calcRewardAmount(Number(formattedGnoBalance));
 
       const consoleLogStrings = [
-        `GP Safe: ${gnosisPaySafeAddress} spent ${formatEther(spendAmountRaw)} ${spentToken.symbol} @ ${blockNumber}`,
+        `GP Safe: ${gnosisPaySafeAddress} spent ${formatEther(spendAmountRaw)} ${spentToken.symbol} @ ${
+          log.blockNumber
+        }`,
       ];
 
       if (gnosisPaySafeGnoTokenBalance > BigInt(0)) {
@@ -141,24 +149,31 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
       }
 
       console.log(consoleLogStrings.join('\n'));
-
       try {
         const pendingRewardDocument = await new pendingRewardModel({
-          _id: `${blockNumber}-${rolesModuleAddress}-${spentTokenAddress}`,
-          gnosisPaySafeAddress,
-          gnoRewardsAmount,
-          gnoRewardsBps: gnoRewardsBips,
-          blockNumber,
-          transactionHash,
-          gnoTokenBalance: formattedGnoBalance,
+          _id: log.transactionHash,
+          blockNumber: Number(log.blockNumber),
+          transactionHash: log.transactionHash,
+          gnoBalance: gnosisPaySafeGnoTokenBalance.toString(),
           safeAddress: gnosisPaySafeAddress,
           spentAmount: spendAmountRaw.toString(),
           spentToken: spentTokenAddress,
-          blockTimestamp: block.timestamp,
+          blockTimestamp: Number(block.timestamp),
         }).save();
 
+        const pendingRewardUnpopulated = pendingRewardDocument.toJSON();
+
+        // Manually populate the spentToken and safeAddress fields
+        const pendingRewardJsonData: PendingRewardFieldsTypePopulated = {
+          ...pendingRewardUnpopulated,
+          spentToken: {
+            ...spentToken,
+            _id: spentTokenAddress,
+          },
+        };
+
         // Emit to the UI
-        socketIoServer.emit('newPendingReward', pendingRewardDocument.toJSON());
+        socketIoServer.emit('newPendingReward', pendingRewardJsonData);
       } catch (e) {
         console.error(e);
       }
