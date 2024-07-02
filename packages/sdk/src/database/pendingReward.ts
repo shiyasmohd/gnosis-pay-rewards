@@ -10,15 +10,19 @@ export type PendingRewardFieldsType<SpentTokenFieldType> = {
   /**
    * The timestamp of the block
    */
-  blockTimestamp: Date;
+  blockTimestamp: number;
   /**
    * The hash of the transaction
    */
   transactionHash: `0x${string}`;
   /**
-   * The balance of the GNO token in the Safe avatar
+   * The balance of the GNO in this snapshot
    */
-  gnoTokenBalance: string;
+  gnoBalance: string;
+  /**
+   * The amount of the GNO token that the Safe avatar received
+   */
+  gnoRewardAmount?: string;
   /**
    * The original Safe avatar that spend the money
    */
