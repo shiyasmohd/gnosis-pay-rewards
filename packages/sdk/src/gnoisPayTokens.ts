@@ -21,7 +21,7 @@ export const gnosisPayTokens: SerializableErc20TokenType[] = [
   },
   {
     symbol: 'GBPe',
-    address: '0x5cb9073902f2035222b9749f8fb0c9bfe5527108',
+    address: '0x5Cb9073902F2035222B9749F8fB0c9BFe5527108',
     decimals: 18,
     name: 'Monerium GBP emoney (GBPe)',
     chainId: 100,
