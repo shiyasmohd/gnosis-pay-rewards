@@ -9,15 +9,10 @@ export const MULTICALL_CONTRACT_ADDRESS = '0xcA11bde05977b3631167028862bE2a17397
  * @returns
  */
 export function getMulticallContract(
-  publicClient: PublicClient,
-): GetContractReturnType<
-  Narrow<typeof Multicall2_ABI>,
-  PublicClient,
-  any,
-  '0xcA11bde05977b3631167028862bE2a173976CA11'
-> {
+  client: PublicClient
+): GetContractReturnType<Narrow<typeof Multicall2_ABI>, PublicClient, '0xcA11bde05977b3631167028862bE2a173976CA11'> {
   const multicallContract = getContract({
-    publicClient,
+    client,
     address: MULTICALL_CONTRACT_ADDRESS,
     abi: Multicall2_ABI,
   });

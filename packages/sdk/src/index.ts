@@ -7,3 +7,4 @@ export * from './database/pendingReward';
 export * from './database/gnosisPayToken';
 export * from './database/weekData';
 export * from './socket';
+export * from './oracle';

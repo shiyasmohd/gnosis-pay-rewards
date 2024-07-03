@@ -6,6 +6,7 @@ export type SerializableErc20TokenType = {
   decimals: number;
   name: string;
   chainId: number;
+  oracle?: Address;
 };
 
 export const gnoToken: SerializableErc20TokenType = {
@@ -26,6 +27,7 @@ export const gnosisPayTokens: SerializableErc20TokenType[] = [
     decimals: 18,
     name: 'Monerium EUR emoney (EURe)',
     chainId: 100,
+    oracle: '0xab70BCB260073d036d1660201e9d5405F5829b7a',
   },
   {
     symbol: 'GBPe',
@@ -33,6 +35,7 @@ export const gnosisPayTokens: SerializableErc20TokenType[] = [
     decimals: 18,
     name: 'Monerium GBP emoney (GBPe)',
     chainId: 100,
+    oracle: '0x0E418d54863a3fAfeC9e96a358795f0f236f5f66',
   },
   {
     symbol: 'USDC.e',
