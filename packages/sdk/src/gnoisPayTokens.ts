@@ -8,6 +8,14 @@ export type SerializableErc20TokenType = {
   chainId: number;
 };
 
+export const gnoToken: SerializableErc20TokenType = {
+  address: '0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb',
+  symbol: 'GNO',
+  decimals: 18,
+  name: 'Gnosis',
+  chainId: 100,
+} as const;
+
 /**
  * List of token used to process payments in Gnosis Pay as of July 1, 2024
  */
@@ -40,7 +48,7 @@ export const gnosisPayTokens: SerializableErc20TokenType[] = [
     name: 'USDC',
     chainId: 100,
   },
-];
+] as const;
 
 export function getGnosisPayTokenByAddress(tokenAddress: Address) {
   return gnosisPayTokens.find((token) => isAddressEqual(token.address, tokenAddress));
