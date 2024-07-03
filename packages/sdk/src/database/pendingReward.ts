@@ -1,6 +1,9 @@
 import type { Address } from 'viem';
 import { TokenDocumentFieldsType } from './gnosisPayToken';
 
+// https://niftyfair.io/gnosis/collection/0x88997988a6a5aaf29ba973d298d276fe75fb69ab/
+// this is where you can mint the OG NFT
+
 export type PendingRewardFieldsType<SpentTokenFieldType> = {
   _id: string;
   /**
@@ -18,7 +21,11 @@ export type PendingRewardFieldsType<SpentTokenFieldType> = {
   /**
    * The balance of the GNO in this snapshot
    */
-  gnoBalance: string;
+  gnoBalanceRaw: string;
+  /**
+   * The balance of the GNO in this snapshot
+   */
+  gnoBalance: number;
   /**
    * The amount of the GNO token that the Safe avatar received
    */
@@ -30,7 +37,15 @@ export type PendingRewardFieldsType<SpentTokenFieldType> = {
   /**
    * The amount of the token that the Safe avatar spent
    */
-  spentAmount: string;
+  spentAmountRaw: string;
+  /**
+   * Use this as the value to display to the user
+   */
+  spentAmount: number;
+  /**
+   * The amount of the token that the Safe avatar spent in USD, this is converted at the exchange rate of the token
+   */
+  spentAmountUsd: number;
   /**
    * The token that the Safe avatar spent
    */
