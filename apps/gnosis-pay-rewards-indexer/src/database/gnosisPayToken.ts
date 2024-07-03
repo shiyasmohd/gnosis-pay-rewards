@@ -1,8 +1,8 @@
 import { gnosisPayTokens, TokenDocumentFieldsType } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { Schema, Mongoose } from 'mongoose';
-import { isAddress } from 'viem';
+import { Schema, Mongoose, Model } from 'mongoose';
+import { Address, isAddress, isAddressEqual } from 'viem';
 
-const TokenSchema = new Schema<TokenDocumentFieldsType>(
+const tokenSchema = new Schema<TokenDocumentFieldsType>(
   {
     _id: {
       type: String,
@@ -32,37 +32,48 @@ const TokenSchema = new Schema<TokenDocumentFieldsType>(
   {
     _id: false, // Disable the _id field
     timestamps: true,
-  },
+  }
 );
+
+export const modelName = 'Token' as const;
+
+export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocumentFieldsType> {
+  // Return cached model if it exists
+  if (mongooseConnection.models[modelName]) {
+    return mongooseConnection.models[modelName] as Model<TokenDocumentFieldsType>;
+  }
+
+  return mongooseConnection.model(modelName, tokenSchema);
+}
 
 /**
  * Migrate the tokens to the database
  * @param mongooseClient - The mongoose client
  */
-export async function migrateGnosisPayTokensToDatabase(mongooseClient: Mongoose) {
-  // Make sure the model is not already defined
-  if (mongooseClient.models.gnosisPayTokens) {
-    console.log('Gnosis Pay tokens already migrated');
-    return;
-  }
-
-  const mongooseTokenModel = mongooseClient.model<TokenDocumentFieldsType>('Token', TokenSchema);
+export async function migrateGnosisPayTokensToDatabase(tokenModel: Model<TokenDocumentFieldsType>) {
 
   // Skip adding if the entries already exist
-  const existingTokens = await mongooseTokenModel.find({});
+  const existingTokens = await tokenModel.find({});
 
   const gpTokensWithId = gnosisPayTokens
     .map((token) => ({
       ...token,
-      _id: token.address,
+      // Make sure the address is lowercase
+      address: token.address.toLowerCase(),
+      _id: token.address.toLowerCase(),
     }))
     // Remove tokens that exist in the existingTokens
-    .filter((token) => !existingTokens.some((t) => t._id === token._id));
+    .filter(
+      (token) =>
+        !existingTokens.some((t) => {
+          return isAddressEqual(t._id as Address, token._id as Address);
+        })
+    );
 
-  const session = await mongooseClient.startSession();
+  const session = await tokenModel.startSession();
   session.startTransaction();
   try {
-    await mongooseTokenModel.insertMany(gpTokensWithId, { session });
+    await tokenModel.insertMany(gpTokensWithId, { session });
     await session.commitTransaction();
   } catch (error) {
     await session.abortTransaction();
