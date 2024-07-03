@@ -1,9 +1,11 @@
-export const EXPLORER_LINK_TYPE: Record<string, string> = {
+type ExplorerLinkType = 'transaction' | 'token' | 'address' | 'block';
+
+export const EXPLORER_LINK_TYPE: Record<ExplorerLinkType, string> = {
   transaction: 'transaction',
   token: 'token',
   address: 'address',
   block: 'block',
-};
+} as const;
 
 export enum ExplorerDataType {
   TRANSACTION = 'transaction',
@@ -25,7 +27,7 @@ function getExplorerPrefix(chainId: number) {
   }
 }
 
-export function getExplorerLink(chainId: number, hash: string, type: keyof typeof EXPLORER_LINK_TYPE): string {
+export function getExplorerLink(chainId: number, hash: string, type: ExplorerLinkType): string {
   const prefix = getExplorerPrefix(chainId);
   switch (type) {
     case EXPLORER_LINK_TYPE.transaction: {
