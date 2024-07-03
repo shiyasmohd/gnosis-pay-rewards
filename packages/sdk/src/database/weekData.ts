@@ -6,7 +6,7 @@ export type WeekSnapshotDocumentFieldsType = {
   /**
    * Total USD volume for the week
    */
-  totalUsdVolume: string;
+  totalUsdVolume: number;
   /**
    * Transactions for the week
    */
