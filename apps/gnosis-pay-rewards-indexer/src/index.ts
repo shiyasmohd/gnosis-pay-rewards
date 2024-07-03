@@ -1,62 +1,54 @@
+process.env.TZ = 'UTC';
 import './sentry.js'; // imported first to setup sentry
-import { Address, PublicClient, Transport, erc20Abi, formatEther } from 'viem';
-import {
-  gnosisPayStartBlock,
-  gnoTokenAddress,
-  calcRewardAmount,
-  bigMath,
-  getGnosisPayTokenByAddress,
-  PendingRewardFieldsTypePopulated,
-} from '@karpatkey/gnosis-pay-rewards-sdk';
+import { PublicClient, Transport, formatUnits } from 'viem';
+import { gnosisPayStartBlock, bigMath } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { gnosis } from 'viem/chains';
 import { gnosisChainPublicClient } from './publicClient.js';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
-import { migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
+import { getTokenModel, migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
 import { clampToBlockRange } from './utils.js';
 import { buildSocketIoServer, buildExpressApp } from './server.js';
 import { SOCKET_IO_SERVER_PORT, MONGODB_URI } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
 import { createConnection } from './database/createConnection.js';
 import { getPendingRewardModel } from './database/pendingReward.js';
-import { getBlockByNumber } from './getBlockByNumber.js';
 import { addHttpRoutes } from './addHttpRoutes.js';
+import { addSocketComms } from './addSocketComms.js';
+import { processSpendLog } from './processSpendLog.js';
+import { getOrCreateWeekDataDocument, getWeekDataModel } from './database/weekData.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
+const resumeIndexing = false;
 
-async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
+async function startIndexing({
+  client,
+  resumeIndexing = false,
+}: {
+  client: PublicClient<Transport, typeof gnosis>;
+  /**
+   * If true, the indexer will resume indexing from the latest pending reward in the database.
+   * If the database is empty, the indexer will start indexing from the Gnosis Pay start block.
+   * See {@link gnosisPayStartBlock} for the start block.
+   */
+  resumeIndexing?: boolean;
+}) {
   // Connect to the database
   const mongooseConnection = await createConnection(MONGODB_URI);
 
   console.log('Migrating Gnosis Pay tokens to database');
-  await migrateGnosisPayTokensToDatabase(mongooseConnection);
+  await migrateGnosisPayTokensToDatabase(getTokenModel(mongooseConnection));
 
   const pendingRewardModel = getPendingRewardModel(mongooseConnection);
-  // Clean up the database
-  await pendingRewardModel.deleteMany();
+  const weekDataModel = getWeekDataModel(mongooseConnection);
 
   const expressApp = addHttpRoutes({
     expressApp: buildExpressApp(),
     pendingRewardModel,
   });
-  const { socketIoServer } = buildSocketIoServer(expressApp);
 
-  // Emit the 10 recent pending rewards to the UI when a client connects
-  socketIoServer.on('connection', async (socketClient) => {
-    socketClient.on('disconnect', () => {
-      console.log('Client disconnected');
-    });
-
-    socketClient.on('getRecentPendingRewards', async (limit: number) => {
-      const pendingRewards = await pendingRewardModel
-        .find()
-        .populate('spentToken')
-        .limit(limit)
-        .sort({ blockNumber: -1 });
-      socketClient.emit(
-        'recentPendingRewards',
-        pendingRewards.map((r) => r.toJSON())
-      );
-    });
+  const socketIoServer = addSocketComms({
+    socketIoServer: buildSocketIoServer(expressApp),
+    pendingRewardModel,
   });
 
   socketIoServer.listen(SOCKET_IO_SERVER_PORT);
@@ -65,7 +57,23 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
 
   // Initialize the latest block
   let latestBlock = await client.getBlock({ includeTransactions: false });
+
+  // default value is June 29th, 2024. Otherwise, we fetch the latest block from the indexed pending rewards
   let fromBlockNumber = gnosisPayStartBlock;
+
+  if (resumeIndexing === true) {
+    const [latestPendingReward] = await pendingRewardModel.find().sort({ blockNumber: -1 }).limit(1);
+    if (latestPendingReward !== undefined) {
+      fromBlockNumber = BigInt(latestPendingReward.blockNumber) - indexBlockSize;
+      console.log(`Resuming indexing from #${fromBlockNumber}`);
+    } else {
+      console.warn(`No pending rewards found, starting from the beginning at #${gnosisPayStartBlock}`);
+    }
+  } else {
+    // Clean up the database
+    await pendingRewardModel.deleteMany();
+  }
+
   let toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);
 
   // Watch for new blocks
@@ -90,90 +98,27 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
     });
 
     for (const log of logs) {
-      const { account: rolesModuleAddress, amount: spendAmountRaw, asset: spentTokenAddress } = log.args;
-      // Verify that the token is registered as GP token like EURe, GBPe, and USDC
-      const spentToken = getGnosisPayTokenByAddress(spentTokenAddress);
-
-      if (!spentToken) {
-        console.warn(`Unknown token: ${spentTokenAddress}`);
-        continue;
-      }
-
-      const { data: block } = await getBlockByNumber({ client, blockNumber: log.blockNumber });
-
-      if (!block) {
-        /**
-         * @todo make this a retryable error
-         */
-        console.error(`Block #${log.blockNumber} not found`);
-        continue;
-      }
-
-      const gnosisPaySafeAddress = (await gnosisChainPublicClient.readContract({
-        abi: [
-          {
-            name: 'avatar',
-            outputs: [{ internalType: 'address', name: '', type: 'address' }],
-            stateMutability: 'view',
-            type: 'function',
-          },
-        ],
-        functionName: 'avatar',
-        address: rolesModuleAddress,
-        blockNumber: log.blockNumber,
-      })) as Address;
-
-      // Fetch the GNO token balance for the GP Safe at the spend block
-      const gnosisPaySafeGnoTokenBalance = await client.readContract({
-        abi: erc20Abi,
-        address: gnoTokenAddress,
-        functionName: 'balanceOf',
-        args: [gnosisPaySafeAddress],
-        blockNumber: log.blockNumber,
-      });
-
-      const formattedGnoBalance = formatEther(gnosisPaySafeGnoTokenBalance);
-
-      const { amount: gnoRewardsAmount, bips: gnoRewardsBips } = calcRewardAmount(Number(formattedGnoBalance));
-
-      const consoleLogStrings = [
-        `GP Safe: ${gnosisPaySafeAddress} spent ${formatEther(spendAmountRaw)} ${spentToken.symbol} @ ${
-          log.blockNumber
-        }`,
-      ];
-
-      if (gnosisPaySafeGnoTokenBalance > BigInt(0)) {
-        consoleLogStrings.push(
-          `They have ${formattedGnoBalance} GNO and will receive ${gnoRewardsAmount} GNO rewards (@${gnoRewardsBips} BPS).`
-        );
-      }
-
-      console.log(consoleLogStrings.join('\n'));
       try {
-        const pendingRewardDocument = await new pendingRewardModel({
-          _id: log.transactionHash,
-          blockNumber: Number(log.blockNumber),
-          transactionHash: log.transactionHash,
-          gnoBalance: gnosisPaySafeGnoTokenBalance.toString(),
-          safeAddress: gnosisPaySafeAddress,
-          spentAmount: spendAmountRaw.toString(),
-          spentToken: spentTokenAddress,
-          blockTimestamp: Number(block.timestamp),
-        }).save();
+        const { data: pendingRewardDocument } = await processSpendLog({
+          client,
+          log,
+          pendingRewardModel,
+        });
 
-        const pendingRewardUnpopulated = pendingRewardDocument.toJSON();
+        if (pendingRewardDocument) {
+          socketIoServer.emit('newPendingReward', pendingRewardDocument);
 
-        // Manually populate the spentToken and safeAddress fields
-        const pendingRewardJsonData: PendingRewardFieldsTypePopulated = {
-          ...pendingRewardUnpopulated,
-          spentToken: {
-            ...spentToken,
-            _id: spentTokenAddress,
-          },
-        };
+          // Normalize the pending reward data into the week's data
+          const weekDataDocument = await getOrCreateWeekDataDocument({
+            unixTimestamp: pendingRewardDocument.blockTimestamp,
+            weekDataModel,
+          });
 
-        // Emit to the UI
-        socketIoServer.emit('newPendingReward', pendingRewardJsonData);
+          // weekDataDocument.transactions.push(pendingRewardDocument._id);
+          weekDataDocument.totalUsdVolume = weekDataDocument.totalUsdVolume + pendingRewardDocument.spentAmountUsd;
+
+          await weekDataDocument.save();
+        }
       } catch (e) {
         console.error(e);
       }
@@ -192,7 +137,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
         `Cooldown for 20 seconds becaure toBlockNumber (#${toBlockNumber}) is within 10 blocks of latestBlock (#${latestBlock.number})`
       );
 
-      const targetBlockNumber = toBlockNumber + indexBlockSize * 30n;
+      const targetBlockNumber = toBlockNumber + indexBlockSize + 3n;
 
       console.log(`Waiting for #${targetBlockNumber}`);
 
@@ -204,7 +149,7 @@ async function startIndexing(client: PublicClient<Transport, typeof gnosis>) {
   }
 }
 
-startIndexing(gnosisChainPublicClient).catch((e) => {
+startIndexing({ client: gnosisChainPublicClient, resumeIndexing }).catch((e) => {
   console.error(e);
   process.exit(1);
 });
