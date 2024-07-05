@@ -32,7 +32,7 @@ const tokenSchema = new Schema<TokenDocumentFieldsType>(
   {
     _id: false, // Disable the _id field
     timestamps: true,
-  }
+  },
 );
 
 export const modelName = 'Token' as const;
@@ -51,7 +51,6 @@ export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocument
  * @param mongooseClient - The mongoose client
  */
 export async function migrateGnosisPayTokensToDatabase(tokenModel: Model<TokenDocumentFieldsType>) {
-
   // Skip adding if the entries already exist
   const existingTokens = await tokenModel.find({});
 
@@ -67,7 +66,7 @@ export async function migrateGnosisPayTokensToDatabase(tokenModel: Model<TokenDo
       (token) =>
         !existingTokens.some((t) => {
           return isAddressEqual(t._id as Address, token._id as Address);
-        })
+        }),
     );
 
   const session = await tokenModel.startSession();

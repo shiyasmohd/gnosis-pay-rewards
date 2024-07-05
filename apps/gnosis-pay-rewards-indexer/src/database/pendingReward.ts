@@ -1,7 +1,6 @@
 import { PendingRewardFieldsTypeUnpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model, Mongoose, Schema } from 'mongoose';
-
-import { Address, isAddress } from 'viem';
+import { Address, isAddress, isHash } from 'viem';
 
 const pendingRewardSchema = new Schema<PendingRewardFieldsTypeUnpopulated>(
   {
@@ -61,7 +60,7 @@ const pendingRewardSchema = new Schema<PendingRewardFieldsTypeUnpopulated>(
   },
   {
     _id: false,
-  }
+  },
 );
 
 export const modelName = 'PendingReward' as const;

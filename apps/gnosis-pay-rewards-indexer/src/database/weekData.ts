@@ -7,7 +7,7 @@ import { modelName as pendingRewardModelName } from './pendingReward.js';
 export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
   {
     date: { type: String, required: true },
-    totalUsdVolume: { type: Number, required: true },
+    totalUsdVolume: { type: Number, required: true, default: 0 },
     transactions: {
       type: [Schema.Types.String],
       ref: pendingRewardModelName,
@@ -17,7 +17,12 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
   { timestamps: true }
 ).index({ date: 1 }, { unique: true });
 
-const modelName = 'WeekData' as const;
+export const modelName = 'WeekData' as const;
+
+/**
+ * ISO 8601 date format
+ */
+const weekDataIdFormat = 'YYYY-MM-DD' as const;
 
 export function getWeekDataModel(mongooseConnection: Mongoose) {
   // Return cached model if it exists
@@ -36,7 +41,7 @@ export async function getOrCreateWeekDataDocument({
   weekDataModel: Model<WeekSnapshotDocumentFieldsType>;
 }) {
   const weekStart = dayjs.unix(unixTimestamp).utc().startOf('week');
-  const yyyyMMDD = weekStart.format('YYYY-MM-DD');
+  const yyyyMMDD = weekStart.format(weekDataIdFormat);
 
   const weekDataDocument = await weekDataModel.findOne({ date: yyyyMMDD });
   if (weekDataDocument !== null) {
@@ -46,5 +51,15 @@ export async function getOrCreateWeekDataDocument({
   return weekDataModel.create({
     date: yyyyMMDD,
     totalUsdVolume: '0',
+  });
+}
+
+export async function getCurrentWeekDataDocument({
+  weekDataModel,
+}: {
+  weekDataModel: Model<WeekSnapshotDocumentFieldsType>;
+}) {
+  return getOrCreateWeekDataDocument({
+    weekDataModel, unixTimestamp: dayjs.utc().unix()
   });
 }
