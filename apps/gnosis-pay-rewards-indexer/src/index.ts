@@ -1,7 +1,7 @@
 process.env.TZ = 'UTC';
 import './sentry.js'; // imported first to setup sentry
-import { PublicClient, Transport, formatUnits } from 'viem';
-import { gnosisPayStartBlock, bigMath } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { PublicClient, Transport } from 'viem';
+import { gnosisPayStartBlock, bigMath, gnosisPayTokens } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { gnosis } from 'viem/chains';
 import { gnosisChainPublicClient } from './publicClient.js';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
@@ -11,14 +11,15 @@ import { buildSocketIoServer, buildExpressApp } from './server.js';
 import { SOCKET_IO_SERVER_PORT, MONGODB_URI } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
 import { createConnection } from './database/createConnection.js';
-import { getPendingRewardModel } from './database/pendingReward.js';
+import { getSpendTransactionModel } from './database/spendTransaction.js';
 import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
 import { processSpendLog } from './processSpendLog.js';
 import { getOrCreateWeekDataDocument, getWeekDataModel } from './database/weekData.js';
+import { getGnosisPayRefundLogs } from './getGnosisPayRefundLogs.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
-const resumeIndexing = false;
+const resumeIndexing = true;
 
 async function startIndexing({
   client,
@@ -38,17 +39,18 @@ async function startIndexing({
   console.log('Migrating Gnosis Pay tokens to database');
   await migrateGnosisPayTokensToDatabase(getTokenModel(mongooseConnection));
 
-  const pendingRewardModel = getPendingRewardModel(mongooseConnection);
+  const spendTransactionModel = getSpendTransactionModel(mongooseConnection);
   const weekDataModel = getWeekDataModel(mongooseConnection);
 
   const expressApp = addHttpRoutes({
     expressApp: buildExpressApp(),
-    pendingRewardModel,
+    spendTransactionModel,
   });
 
   const socketIoServer = addSocketComms({
     socketIoServer: buildSocketIoServer(expressApp),
-    pendingRewardModel,
+    spendTransactionModel,
+    weekDataModel,
   });
 
   socketIoServer.listen(SOCKET_IO_SERVER_PORT);
@@ -62,16 +64,16 @@ async function startIndexing({
   let fromBlockNumber = gnosisPayStartBlock;
 
   if (resumeIndexing === true) {
-    const [latestPendingReward] = await pendingRewardModel.find().sort({ blockNumber: -1 }).limit(1);
-    if (latestPendingReward !== undefined) {
-      fromBlockNumber = BigInt(latestPendingReward.blockNumber) - indexBlockSize;
+    const [latestSpendTransaction] = await spendTransactionModel.find().sort({ blockNumber: -1 }).limit(1);
+    if (latestSpendTransaction !== undefined) {
+      fromBlockNumber = BigInt(latestSpendTransaction.blockNumber) - indexBlockSize;
       console.log(`Resuming indexing from #${fromBlockNumber}`);
     } else {
       console.warn(`No pending rewards found, starting from the beginning at #${gnosisPayStartBlock}`);
     }
   } else {
     // Clean up the database
-    await pendingRewardModel.deleteMany();
+    await spendTransactionModel.deleteMany();
   }
 
   let toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);
@@ -90,38 +92,53 @@ async function startIndexing({
 
   // Index all the logs until the latest block
   while (toBlockNumber <= latestBlock.number) {
-    const logs = await getGnosisPaySpendLogs({
+    const spendLogs = await getGnosisPaySpendLogs({
       client,
       fromBlock: fromBlockNumber,
       toBlock: toBlockNumber,
       verbose: true,
     });
 
-    for (const log of logs) {
+    const refundLogs = await getGnosisPayRefundLogs({
+      client,
+      fromBlock: fromBlockNumber,
+      toBlock: toBlockNumber,
+      verbose: true,
+      tokenAddresses: gnosisPayTokens.map((token) => token.address),
+    });
+
+    for (const spendLog of spendLogs) {
       try {
-        const { data: pendingRewardDocument } = await processSpendLog({
+        const { data: spendTransactionDocument, error } = await processSpendLog({
           client,
-          log,
-          pendingRewardModel,
+          log: spendLog,
+          spendTransactionModel,
         });
 
-        if (pendingRewardDocument) {
-          socketIoServer.emit('newPendingReward', pendingRewardDocument);
+        if (spendTransactionDocument) {
+          socketIoServer.emit('newSpendTransaction', spendTransactionDocument);
 
           // Normalize the pending reward data into the week's data
           const weekDataDocument = await getOrCreateWeekDataDocument({
-            unixTimestamp: pendingRewardDocument.blockTimestamp,
+            unixTimestamp: spendTransactionDocument.blockTimestamp,
             weekDataModel,
           });
 
           // weekDataDocument.transactions.push(pendingRewardDocument._id);
-          weekDataDocument.totalUsdVolume = weekDataDocument.totalUsdVolume + pendingRewardDocument.spentAmountUsd;
-
-          await weekDataDocument.save();
+          weekDataDocument.totalUsdVolume = weekDataDocument.totalUsdVolume + spendTransactionDocument.spentAmountUsd;
+          const updatedWeekDataDocument = await weekDataDocument.save();
+          socketIoServer.emit('currentWeekDataUpdated', updatedWeekDataDocument);
+        } else {
+          console.log({ error });
+          console.warn('Pending reward document is undefined');
         }
       } catch (e) {
         console.error(e);
       }
+    }
+
+    for (const refundLog of refundLogs) {
+      console.log({ refundLog });
     }
 
     // Move to the next block range
