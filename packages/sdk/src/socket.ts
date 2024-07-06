@@ -1,11 +1,11 @@
 import type { Server as SocketIoServer } from 'socket.io';
 
-import { PendingRewardFieldsTypePopulated } from './database/pendingReward';
+import { SpendTransactionFieldsTypePopulated } from './database/spendTransaction';
 import { WeekSnapshotDocumentFieldsType } from './database/weekData';
 
 export interface GnosisPayRewardsServerToClientEventsType {
-  newPendingReward: (data: PendingRewardFieldsTypePopulated) => void;
-  recentPendingRewards: (data: PendingRewardFieldsTypePopulated[]) => void;
+  newSpendTransaction: (data: SpendTransactionFieldsTypePopulated) => void;
+  recentSpendTransactions: (data: SpendTransactionFieldsTypePopulated[]) => void;
   currentWeekData: (data: WeekSnapshotDocumentFieldsType) => void;
   currentWeekDataUpdated: (data: WeekSnapshotDocumentFieldsType) => void;
   weekDataByTimestamp: (data: WeekSnapshotDocumentFieldsType | null) => void;
@@ -14,7 +14,7 @@ export interface GnosisPayRewardsServerToClientEventsType {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type GnosisPayRewardsClientToServerEventsType = {
-  getRecentPendingRewards: (limit: number) => void;
+  getRecentSpendTransactions: (limit: number) => void;
   getCurrentWeekData: () => void;
   getWeekDataByTimestamp: (weekTimestamp: number) => void;
   getAllWeekData: () => void;
