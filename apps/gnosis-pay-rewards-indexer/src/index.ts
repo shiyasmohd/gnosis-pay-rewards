@@ -1,8 +1,10 @@
-process.env.TZ = 'UTC';
+process.env.TZ = 'UTC'; // Set the timezone to UTC
 import './sentry.js'; // imported first to setup sentry
+
 import { PublicClient, Transport } from 'viem';
 import { gnosisPayStartBlock, bigMath, gnosisPayTokens } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { gnosis } from 'viem/chains';
+
 import { gnosisChainPublicClient } from './publicClient.js';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
 import { getTokenModel, migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
@@ -17,9 +19,10 @@ import { addSocketComms } from './addSocketComms.js';
 import { processSpendLog } from './processSpendLog.js';
 import { getOrCreateWeekDataDocument, getWeekDataModel } from './database/weekData.js';
 import { getGnosisPayRefundLogs } from './getGnosisPayRefundLogs.js';
+import { getWeekCashbackRewardModel } from './database/WeekCashbackReward.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
-const resumeIndexing = true;
+const resumeIndexing = false;
 
 async function startIndexing({
   client,
@@ -40,6 +43,7 @@ async function startIndexing({
   await migrateGnosisPayTokensToDatabase(getTokenModel(mongooseConnection));
 
   const spendTransactionModel = getSpendTransactionModel(mongooseConnection);
+  const weekCashbackRewardModel = getWeekCashbackRewardModel(mongooseConnection);
   const weekDataModel = getWeekDataModel(mongooseConnection);
 
   const expressApp = addHttpRoutes({
@@ -109,23 +113,24 @@ async function startIndexing({
 
     for (const spendLog of spendLogs) {
       try {
-        const { data: spendTransactionDocument, error } = await processSpendLog({
+        const { data, error } = await processSpendLog({
           client,
           log: spendLog,
           spendTransactionModel,
+          weekCashbackRewardModel,
         });
 
-        if (spendTransactionDocument) {
-          socketIoServer.emit('newSpendTransaction', spendTransactionDocument);
+        if (data !== null && data.spendTransaction) {
+          socketIoServer.emit('newSpendTransaction', data.spendTransaction);
 
           // Normalize the pending reward data into the week's data
           const weekDataDocument = await getOrCreateWeekDataDocument({
-            unixTimestamp: spendTransactionDocument.blockTimestamp,
+            unixTimestamp: data.spendTransaction.blockTimestamp,
             weekDataModel,
           });
 
           // weekDataDocument.transactions.push(pendingRewardDocument._id);
-          weekDataDocument.totalUsdVolume = weekDataDocument.totalUsdVolume + spendTransactionDocument.spentAmountUsd;
+          weekDataDocument.totalUsdVolume = weekDataDocument.totalUsdVolume + data.spendTransaction.spentAmountUsd;
           const updatedWeekDataDocument = await weekDataDocument.save();
           socketIoServer.emit('currentWeekDataUpdated', updatedWeekDataDocument);
         } else {
