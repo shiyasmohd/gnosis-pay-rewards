@@ -19,4 +19,6 @@ if (process.env.NEXT_PUBLIC_INDEXER_SOCKET_URL) {
 export const gnosisPayRewardsIndexerSocket: Socket<
   GnosisPayRewardsServerToClientEventsType,
   GnosisPayRewardsClientToServerEventsType
-> = io(url as string);
+> = io(url as string, {
+  autoConnect: false,
+});

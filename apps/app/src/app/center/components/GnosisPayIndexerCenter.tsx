@@ -1,51 +1,111 @@
 'use client';
-import { PendingRewardFieldsTypePopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { SpendTransactionFieldsTypePopulated, WeekSnapshotDocumentFieldsType } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
 import dayjsrelativeTime from 'dayjs/plugin/relativeTime';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Container } from 'ui/components/Container';
 import { toast } from 'sonner';
 import { gnosisPayRewardsIndexerSocket as socket } from '../socket';
-
+import { RecentSpendTransactionsTable } from './RecentSpendTransactionsTable';
+import {
+  VolumeThisWeekWidget,
+  CurrentWeekWidget,
+  CurrentOwlsThisWeekWidget,
+  EstiamtedPayoutThisWeekWidget,
+} from './widgets';
 dayjs.extend(dayjsrelativeTime);
 
+const connectionTimeoutSeconds = 5;
+
 export function GnosisPayIndexerCenter() {
-  const [recentPendingRewards, setRecentPendingRewards] = useState<PendingRewardFieldsTypePopulated[]>([]);
+  const [connectAttempts, setConnectAttempts] = useState(0);
+  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [recentSpendTransactions, setRecentSpendTransactions] = useState<SpendTransactionFieldsTypePopulated[]>([]);
+  const [currentWeekData, setCurrentWeekData] = useState<WeekSnapshotDocumentFieldsType | null>(null);
 
   const onConnectHandler = useCallback(() => {
-    socket.emit('getRecentPendingRewards', 10);
-    toast('Connected to the server', {});
+    console.log('Connected to server, emitting getRecentSpendTransactions');
+    socket.emit('getRecentSpendTransactions', 10);
+    socket.emit('getCurrentWeekData');
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+    }
+    setConnectionTimeout(null);
+    toast('Connected to the indexer', {});
   }, []);
 
   const onDisconnectHandler = useCallback(() => {
-    // nothing to do for now
+    setConnectAttempts(0);
+    setConnectionTimeout(null);
+    toast('Disconnected from the indexer', {});
+  }, []);
+
+  const onNewSpendTransactionHandler = useCallback((newSpendTransaction: SpendTransactionFieldsTypePopulated) => {
+    setRecentSpendTransactions((prev) => {
+      // Make sure the new spend transaction is not already in the list
+      if (
+        prev.some((spendTransaction) => spendTransaction._id.toLowerCase() === newSpendTransaction._id.toLowerCase())
+      ) {
+        return prev;
+      }
+
+      const nextChunk = [newSpendTransaction, ...prev].sort((a, b) => {
+        // Sort descending by block number
+        return b.blockNumber - a.blockNumber;
+      });
+
+      return nextChunk;
+    });
+  }, []);
+
+  const onCurrentWeekDataUpdatedHandler = useCallback((currentWeekData: WeekSnapshotDocumentFieldsType) => {
+    setCurrentWeekData(currentWeekData);
   }, []);
 
   useEffect(() => {
     socket.on('connect', onConnectHandler);
     socket.on('disconnect', onDisconnectHandler);
-    socket.on('recentPendingRewards', (recentPendingRewards) => {
-      setRecentPendingRewards(recentPendingRewards);
+    socket.on('recentSpendTransactions', (recentSpendTransactions) => {
+      console.log({ recentSpendTransactions });
+      setRecentSpendTransactions(recentSpendTransactions);
     });
-    socket.on('newPendingReward', (newPendingReward) => {
-      // Make sure the new pending reward is not already in the list
-      if (recentPendingRewards.some((pendingReward) => pendingReward._id === newPendingReward._id)) {
-        return;
-      }
-      setRecentPendingRewards((prev) => [newPendingReward, ...prev.slice(0, 9)]);
+    socket.on('currentWeekData', (currentWeekData) => {
+      console.log({ currentWeekData });
+      setCurrentWeekData(currentWeekData);
     });
-
+    socket.on('newSpendTransaction', onNewSpendTransactionHandler);
+    socket.on('currentWeekDataUpdated', onCurrentWeekDataUpdatedHandler);
     socket.on('connect_error', (error) => {
       console.error('connect_error', error);
-      toast('Error connecting to the server', {});
+
+      const nextConnectAttempts = connectAttempts + 1;
+      const nextWaitTimeSeconds = nextConnectAttempts * connectionTimeoutSeconds;
+
+      setConnectAttempts(nextConnectAttempts);
+
+      // Remove old timeout
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+      }
+      setConnectionTimeout(
+        setTimeout(() => {
+          socket.connect();
+        }, nextWaitTimeSeconds * 1_000),
+      );
+
+      toast(`Error connecting to the server, retrying in ${nextWaitTimeSeconds}s`, {});
     });
+
+    // Immediately try to connect to the server
+    socket.connect();
 
     return () => {
       socket.off('connect', onConnectHandler);
       socket.off('disconnect', onDisconnectHandler);
+      socket.off('newSpendTransaction', onNewSpendTransactionHandler);
+      socket.off('currentWeekDataUpdated', onCurrentWeekDataUpdatedHandler);
     };
-  }, [onConnectHandler, onDisconnectHandler]);
+  }, [onConnectHandler, onDisconnectHandler, onNewSpendTransactionHandler, onCurrentWeekDataUpdatedHandler]);
 
   return (
     <Container
@@ -53,33 +113,19 @@ export function GnosisPayIndexerCenter() {
         marginTop: '20px',
       }}
     >
-      <header className="grid gap-4 md:grid-cols-2 lg:grid-cols-[1fr_2fr_1fr_1fr] pb-4">
-        <PlaceholderMetric />
-        <PlaceholderMetric />
-        <PlaceholderMetric />
-        <PlaceholderMetric />
+      <header className="grid gap-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr] pb-4">
+        <VolumeThisWeekWidget volume={currentWeekData?.totalUsdVolume} />
+        <CurrentWeekWidget currentWeek={currentWeekData?.date} />
+        <CurrentOwlsThisWeekWidget />
+        <EstiamtedPayoutThisWeekWidget />
       </header>
       <section className="flex flex-col lg:flex-row justify-between gap-4"></section>
-      {recentPendingRewards.length > 1 ? (
-        // Other cycle log entries
+      {recentSpendTransactions.length > 0 ? (
         <div className="mb-4">
-          <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight mb-4">Recent Pending Rewards</h3>
-          {recentPendingRewards.map((pendingReward) => {
-            return <div className="mb-4" key={pendingReward?._id}></div>;
-          })}
+          <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight mb-4">Recent GP Transactions</h3>
+          <RecentSpendTransactionsTable data={recentSpendTransactions} />
         </div>
       ) : null}
     </Container>
   );
 }
-
-const PlaceholderMetric = () => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">Metric #1</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">Metric #1 Value</div>
-    </CardContent>
-  </Card>
-);

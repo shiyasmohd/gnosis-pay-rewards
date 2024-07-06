@@ -2,28 +2,48 @@
 
 import { PropsWithChildren } from 'react';
 
-import { RainbowKitProvider, getDefaultWallets, getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { argentWallet, trustWallet, ledgerWallet } from '@rainbow-me/rainbowkit/wallets';
-import { mainnet, sepolia } from 'wagmi/chains';
+// import { RainbowKitProvider, getDefaultWallets, getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { trustWallet, ledgerWallet } from '@rainbow-me/rainbowkit/wallets';
+import { gnosis } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider } from 'wagmi';
+import { WagmiProvider, createConfig, http } from 'wagmi';
 import { WALLETCONNECT_PROJECT_ID } from 'constants/env';
 
-const { wallets } = getDefaultWallets();
+import { safe, coinbaseWallet, injected, walletConnect } from 'wagmi/connectors';
 
+export const wagmiCoreConfig = createConfig({
+  connectors: [
+    injected(),
+    coinbaseWallet({
+      appName: 'Gnosis Pay Rewards',
+      chainId: gnosis.id,
+    }),
+    walletConnect({
+      projectId: WALLETCONNECT_PROJECT_ID,
+    }),
+  ],
+  chains: [gnosis],
+  ssr: true,
+  transports: {
+    [gnosis.id]: http(),
+  },
+});
+
+/*
+const { wallets } = getDefaultWallets();
 const config = getDefaultConfig({
-  appName: 'Nimi',
+  appName: 'Gnosis Pay Rewards',
   projectId: WALLETCONNECT_PROJECT_ID,
   wallets: [
     ...wallets,
     {
       groupName: 'Other',
-      wallets: [argentWallet, trustWallet, ledgerWallet],
+      wallets: [trustWallet, ledgerWallet],
     },
   ],
-  chains: [mainnet, ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [sepolia] : [])],
+  chains: [gnosis],
   ssr: true,
-});
+});*/
 
 function makeQueryClient() {
   return new QueryClient({
@@ -61,9 +81,10 @@ export function Providers({ children }: PropsWithChildren) {
   const queryClient = getQueryClient();
 
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={wagmiCoreConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
+        {/* <RainbowKitProvider>{children}</RainbowKitProvider> */}
+        {children}
       </QueryClientProvider>
     </WagmiProvider>
   );
