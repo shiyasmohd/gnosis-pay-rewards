@@ -1,8 +1,8 @@
-import { WeekSnapshotDocumentFieldsType } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { WeekSnapshotDocumentFieldsType, toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
 
 import { Model, Mongoose, Schema } from 'mongoose';
 import { dayjs } from '../lib/dayjs.js';
-import { modelName as pendingRewardModelName } from './pendingReward.js';
+import { modelName as pendingRewardModelName } from './spendTransaction.js';
 
 export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
   {
@@ -18,11 +18,6 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
 ).index({ date: 1 }, { unique: true });
 
 export const modelName = 'WeekData' as const;
-
-/**
- * ISO 8601 date format
- */
-const weekDataIdFormat = 'YYYY-MM-DD' as const;
 
 export function getWeekDataModel(mongooseConnection: Mongoose) {
   // Return cached model if it exists
@@ -40,8 +35,7 @@ export async function getOrCreateWeekDataDocument({
   unixTimestamp: number;
   weekDataModel: Model<WeekSnapshotDocumentFieldsType>;
 }) {
-  const weekStart = dayjs.unix(unixTimestamp).utc().startOf('week');
-  const yyyyMMDD = weekStart.format(weekDataIdFormat);
+  const yyyyMMDD = toWeekDataId(unixTimestamp);
 
   const weekDataDocument = await weekDataModel.findOne({ date: yyyyMMDD });
   if (weekDataDocument !== null) {
@@ -60,6 +54,7 @@ export async function getCurrentWeekDataDocument({
   weekDataModel: Model<WeekSnapshotDocumentFieldsType>;
 }) {
   return getOrCreateWeekDataDocument({
-    weekDataModel, unixTimestamp: dayjs.utc().unix()
+    weekDataModel,
+    unixTimestamp: dayjs.utc().unix(),
   });
 }

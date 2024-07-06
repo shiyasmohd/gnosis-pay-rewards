@@ -1,8 +1,8 @@
-import { PendingRewardFieldsTypeUnpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { SpendTransactionFieldsTypeUnpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model, Mongoose, Schema } from 'mongoose';
 import { Address, isAddress, isHash } from 'viem';
 
-const pendingRewardSchema = new Schema<PendingRewardFieldsTypeUnpopulated>(
+const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpopulated>(
   {
     _id: {
       type: String,
@@ -63,13 +63,13 @@ const pendingRewardSchema = new Schema<PendingRewardFieldsTypeUnpopulated>(
   },
 );
 
-export const modelName = 'PendingReward' as const;
+export const modelName = 'SpendTransaction' as const;
 
-export function getPendingRewardModel(mongooseConnection: Mongoose) {
+export function getSpendTransactionModel(mongooseConnection: Mongoose) {
   // Return cached model if it exists
   if (mongooseConnection.models[modelName]) {
-    return mongooseConnection.models[modelName] as Model<PendingRewardFieldsTypeUnpopulated>;
+    return mongooseConnection.models[modelName] as Model<SpendTransactionFieldsTypeUnpopulated>;
   }
 
-  return mongooseConnection.model(modelName, pendingRewardSchema);
+  return mongooseConnection.model(modelName, spendTransactionSchema);
 }
