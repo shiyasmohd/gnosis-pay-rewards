@@ -1,12 +1,13 @@
+import { isAddress } from 'viem';
 import { buildExpressApp } from './server.js';
-import { getPendingRewardModel } from './database/pendingReward.js';
+import { getSpendTransactionModel } from './database/spendTransaction.js';
 
 export function addHttpRoutes({
   expressApp,
-  pendingRewardModel,
+  spendTransactionModel,
 }: {
   expressApp: ReturnType<typeof buildExpressApp>;
-  pendingRewardModel: ReturnType<typeof getPendingRewardModel>;
+  spendTransactionModel: ReturnType<typeof getSpendTransactionModel>;
 }) {
   expressApp.get<'/health'>('/health', (_, res) => {
     return res.send({
@@ -16,18 +17,18 @@ export function addHttpRoutes({
   });
 
   expressApp.get<'/pending-rewards'>('/pending-rewards', async (_, res) => {
-    const pendingRewards = await pendingRewardModel.find({});
+    const spendTransactions = await spendTransactionModel.find({});
     return res.json({
-      data: pendingRewards.map((pendingReward) => pendingReward.toJSON()),
+      data: spendTransactions.map((spendTransaction) => spendTransaction.toJSON()),
       status: 'ok',
       statusCode: 200,
     });
   });
 
   expressApp.get<'/pending-rewards/:id'>('/pending-rewards/:id', async (req, res) => {
-    const pendingReward = await pendingRewardModel.findById(req.params.id);
+    const spendTransaction = await spendTransactionModel.findById(req.params.id);
 
-    if (pendingReward === null) {
+    if (spendTransaction === null) {
       return res.status(404).json({
         error: 'Pending reward not found',
         status: 'error',
@@ -36,7 +37,28 @@ export function addHttpRoutes({
     }
 
     return res.json({
-      data: pendingReward.toJSON(),
+      data: spendTransaction.toJSON(),
+      status: 'ok',
+      statusCode: 200,
+    });
+  });
+
+  expressApp.get<'/cashbacks/:address'>('/cashbacks/:address', async (req, res) => {
+    const userAddress = req.params.address;
+
+    if (!isAddress(userAddress)) {
+      return res.status(4000).json({
+        error: 'Invalid address',
+        status: 'error',
+        statusCode: 400,
+      });
+    }
+
+    return res.json({
+      data: {
+        address: userAddress,
+        cashbacks: [],
+      },
       status: 'ok',
       statusCode: 200,
     });

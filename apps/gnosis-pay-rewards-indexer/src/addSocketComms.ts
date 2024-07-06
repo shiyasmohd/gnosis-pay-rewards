@@ -1,12 +1,15 @@
-import { getPendingRewardModel } from './database/pendingReward.js';
+import { getSpendTransactionModel } from './database/spendTransaction.js';
 import { buildSocketIoServer } from './server.js';
+import { getCurrentWeekDataDocument, getWeekDataModel, getOrCreateWeekDataDocument } from './database/weekData.js';
 
 export function addSocketComms({
   socketIoServer,
-  pendingRewardModel,
+  spendTransactionModel,
+  weekDataModel,
 }: {
   socketIoServer: ReturnType<typeof buildSocketIoServer>;
-  pendingRewardModel: ReturnType<typeof getPendingRewardModel>;
+  spendTransactionModel: ReturnType<typeof getSpendTransactionModel>;
+  weekDataModel: ReturnType<typeof getWeekDataModel>;
 }) {
   // Emit the 10 recent pending rewards to the UI when a client connects
   socketIoServer.on('connection', async (socketClient) => {
@@ -14,14 +17,11 @@ export function addSocketComms({
       console.log('Client disconnected');
     });
 
-    socketClient.on('getRecentPendingRewards', async (limit: number) => {
-      const pendingRewards = await pendingRewardModel
+    socketClient.on('getRecentSpendTransactions', async (limit: number) => {
+      const spendTransactions = await spendTransactionModel
         .find()
         .populate({
           path: 'spentToken',
-          populate: {
-            path: 'token',
-          },
           match: {
             _id: { $exists: true },
           },
@@ -29,8 +29,29 @@ export function addSocketComms({
         .limit(limit)
         .sort({ blockNumber: -1 });
       socketClient.emit(
-        'recentPendingRewards',
-        pendingRewards.map((r) => r.toJSON())
+        'recentSpendTransactions',
+        spendTransactions.map((s) => s.toJSON())
+      );
+    });
+
+    socketClient.on('getCurrentWeekData', async () => {
+      const weekData = await getCurrentWeekDataDocument({ weekDataModel });
+      socketClient.emit('currentWeekData', weekData.toJSON());
+    });
+
+    socketClient.on('getWeekDataByTimestamp', async (weekTimestamp: number) => {
+      const weekData = await getOrCreateWeekDataDocument({
+        weekDataModel,
+        unixTimestamp: weekTimestamp,
+      });
+      socketClient.emit('weekDataByTimestamp', weekData.toJSON());
+    });
+
+    socketClient.on('getAllWeekData', async () => {
+      const allWeekData = await weekDataModel.find().sort({ timestamp: 1 });
+      socketClient.emit(
+        'allWeekData',
+        allWeekData.map((w) => w.toJSON())
       );
     });
   });

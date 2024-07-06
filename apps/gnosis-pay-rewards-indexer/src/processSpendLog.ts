@@ -3,23 +3,23 @@ import {
   gnoTokenAddress,
   calcRewardAmount,
   getGnosisPayTokenByAddress,
-  PendingRewardFieldsTypePopulated,
+  SpendTransactionFieldsTypePopulated,
   getOraclePriceAtBlockNumber,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { gnosis } from 'viem/chains';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
-import { getPendingRewardModel } from './database/pendingReward.js';
+import { getSpendTransactionModel } from './database/spendTransaction.js';
 import { getBlockByNumber } from './getBlockByNumber.js';
 import { gnoToken } from '@karpatkey/gnosis-pay-rewards-sdk';
 
 export async function processSpendLog({
   client,
   log,
-  pendingRewardModel,
+  spendTransactionModel,
 }: {
   client: PublicClient<Transport, typeof gnosis>;
   log: Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[number];
-  pendingRewardModel: ReturnType<typeof getPendingRewardModel>;
+  spendTransactionModel: ReturnType<typeof getSpendTransactionModel>;
 }) {
   const { account: rolesModuleAddress, amount: spendAmountRaw, asset: spentTokenAddress } = log.args;
   // Verify that the token is registered as GP token like EURe, GBPe, and USDC
@@ -93,7 +93,7 @@ export async function processSpendLog({
   const spentAmount = Number(formatUnits(spendAmountRaw, spentToken.decimals));
   const spentAmountUsd = latestRoundDataAtBlock.data?.price ? spentAmount * latestRoundDataAtBlock.data.price : 0;
 
-  const pendingRewardDocument = await new pendingRewardModel({
+  const spendTransactionDocument = await new spendTransactionModel({
     _id: log.transactionHash,
     blockNumber: Number(log.blockNumber),
     blockTimestamp: Number(block.timestamp),
@@ -107,11 +107,11 @@ export async function processSpendLog({
     spentToken: spentTokenAddress,
   }).save();
 
-  const pendingRewardUnpopulated = pendingRewardDocument.toJSON();
+  const spendTransactionUnpopulated = spendTransactionDocument.toJSON();
 
   // Manually populate the spentToken and safeAddress fields
-  const pendingRewardJsonData: PendingRewardFieldsTypePopulated = {
-    ...pendingRewardUnpopulated,
+  const spendTransactionJsonData: SpendTransactionFieldsTypePopulated = {
+    ...spendTransactionUnpopulated,
     spentToken: {
       ...spentToken,
       _id: spentTokenAddress,
@@ -120,6 +120,6 @@ export async function processSpendLog({
 
   return {
     error: null,
-    data: pendingRewardJsonData,
+    data: spendTransactionJsonData,
   };
 }

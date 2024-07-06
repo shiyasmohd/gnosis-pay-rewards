@@ -6,7 +6,7 @@ export async function getGnosisPaySpendLogs({
   client,
   fromBlock,
   toBlock,
-  retries = 10,
+  retries = 30,
   verbose = false,
 }: {
   /**
