@@ -4,10 +4,10 @@ import { Tooltip } from 'components/Tooltip/Tooltip';
 import { AnimatePresence } from 'framer-motion';
 import { useDisconnect, useEnsName } from 'wagmi';
 import { ConnectedAccountImage } from './ConnectedAccountImage';
-import { BlackButton } from 'ui/components/Button';
 import { styled } from 'styled-components';
 import { useRouter } from 'next/navigation';
 import { useWeb3 } from 'hooks/useWeb3';
+import { Button } from '@/components/ui/button';
 
 export function AccountStatus() {
   const { replace } = useRouter();
@@ -40,9 +40,9 @@ export function AccountStatus() {
               </>
             )}
           </div>
-          <BlackButton title="Disconnect and log out" onClick={onLogoutClick}>
+          <Button variant="outline" title="Disconnect and log out" onClick={onLogoutClick}>
             Log out
-          </BlackButton>
+          </Button>
         </StyledLayout>
       ) : null}
     </AnimatePresence>

@@ -1,4 +1,4 @@
-const APP_NAME = 'KPK';
+const APP_NAME = 'Gnosis Pay Rewards';
 const separator = '/';
 /**
  * Get page title by name

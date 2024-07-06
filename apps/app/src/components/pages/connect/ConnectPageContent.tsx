@@ -1,19 +1,14 @@
 'use client';
-import { shortenAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { ConnectResult } from '@wagmi/core';
 import { useRouter } from 'next/navigation';
 import { styled } from 'styled-components';
-import { ConnectorAlreadyConnectedError, useAccount, useConnect, useWalletClient } from 'wagmi';
+import { Connector, ConnectorAlreadyConnectedError, useAccount, useConnect, useWalletClient } from 'wagmi';
 import { mainnet } from 'viem/chains';
-import { BlackButton, TextButton } from 'ui/components/Button';
 import { colors, fontSizes } from 'ui/constants';
 import { ButtonInlineLoader } from 'components/Loader';
 import { popularProviders } from './popularProviders';
-import { useEffect, useState } from 'react';
 import { WalletClient } from 'viem';
-import { SiweNimiIdAuth, createMessage, verifySignature } from 'wallet/siwe';
-import { Tooltip } from 'components/Tooltip/Tooltip';
-import { useWalletAuth } from 'wallet/atoms';
+import { Button } from '@/components/ui/button';
 
 type OnWalletConnectFn = (data: ConnectResult) => void | Promise<void>;
 type OnHandleSiweFn = (walletClient: WalletClient) => void | Promise<void>;
@@ -27,50 +22,23 @@ export function ConnectPageContent({
    */
   next?: string;
 }) {
-  const [currentStep, setCurrentStep] = useState<'connect' | 'siwe'>('connect');
   const { push: navigate } = useRouter();
   const { data: walletClient } = useWalletClient();
-  const { disconnect, setAuth } = useWalletAuth();
-  const [isPrepared, setIsPrepared] = useState(false);
-
-  // Disconnect any previous wallet client
-  useEffect(() => {
-    // Disconnect the wallet client
-    disconnect();
-
-    return () => {
-      setIsPrepared(false);
-    };
-  }, []);
-
-  /**
-   * This is the callback that is called when the user successfully connects to a wallet
-   * @param data  The data returned from the connectAsync function
-   * @returns
-   */
-  const onWalletConnect = async ({ connector }: ConnectResult) => {
-    setCurrentStep('siwe');
-  };
 
   /**
    * Redirect to the next page if specified, otherwise redirect to the overview page
    * @param auth  The auth data returned from the Siwe API
    */
-  const onSuccess = async (auth: SiweNimiIdAuth) => {
+  const onSuccess = async (auth?: any) => {
     console.log({
       auth,
     });
-
-    setAuth(auth);
-
-    // Get the address from the auth data
-    const { address } = auth.payload;
 
     // Redirect
     if (next) {
       navigate(next);
     } else {
-      navigate(`/${address.toLowerCase()}/overview`);
+      navigate(`/overview`);
     }
   };
 
@@ -78,27 +46,10 @@ export function ConnectPageContent({
     <ConnectPageContentWrapper>
       <Header>
         <h1>
-          Login to <strong>karpatkey</strong>
+          Login to <strong>Gnosis Pay Rewards</strong>
         </h1>
       </Header>
-      {currentStep === 'connect' && (
-        <ConnectWalletStep
-          onWalletConnect={onWalletConnect}
-          onHandleSiwe={() => {
-            setCurrentStep('siwe');
-          }}
-        />
-      )}
-      {currentStep === 'siwe' && (
-        <SignInWithEthereumStep
-          onError={() => {}}
-          walletClient={walletClient as WalletClient}
-          onSuccess={onSuccess}
-          onCancel={() => {
-            setCurrentStep('connect');
-          }}
-        />
-      )}
+      <ConnectWalletStep onWalletConnect={onSuccess} />
     </ConnectPageContentWrapper>
   );
 }
@@ -107,25 +58,36 @@ function ConnectWalletStep({
   onWalletConnect,
   onHandleSiwe,
 }: {
-  onWalletConnect: OnWalletConnectFn;
+  onWalletConnect: () => void;
   onHandleSiwe?: OnHandleSiweFn;
 }) {
   const { data: prevWalletClient } = useWalletClient();
   const account = useAccount();
-  const { connectors, isLoading, pendingConnector, connectAsync } = useConnect({
-    onSuccess: onWalletConnect as any,
-  });
+  const { connectors, isLoading, connectAsync } = useConnect({});
 
+  const rabby = connectors.find((connector) => connector.id === 'io.rabby');
+  const injected = connectors.find((connector) => connector.id === 'injected');
+  const phantom = connectors.find((connector) => connector.id === 'app.phantom');
+  const coinbase = connectors.find((connector) => connector.id === 'coinbaseWalletSDK');
+  const walletConnect = connectors.find((connector) => connector.id === 'walletConnect');
+
+  const sortedConnectors = [
+    // Browser first,
+    rabby ? rabby : injected,
+    phantom,
+    coinbase,
+    walletConnect,
+  ].filter(Boolean) as Connector[];
+
+  console.log({ connectors, sortedConnectors });
   return (
     <ConnectorList>
-      {connectors.map((connector) => {
+      {sortedConnectors.map((connector) => {
         const providerInfo = popularProviders[connector.id] ?? {};
-
         return (
-          <ConnectorButtonBlack
+          <Button
             data-connector-id={connector.id}
             type="button"
-            disabled={!connector.ready}
             key={connector.id}
             onClick={async () => {
               await connectAsync({
@@ -133,7 +95,7 @@ function ConnectWalletStep({
                 chainId: mainnet.id,
               }).catch((e) => {
                 if (e instanceof ConnectorAlreadyConnectedError && account.address) {
-                  return onHandleSiwe?.(prevWalletClient!);
+                  return onWalletConnect();
                 }
                 console.log(e);
               });
@@ -144,135 +106,17 @@ function ConnectWalletStep({
                 <div data-content="logo">
                   <providerInfo.logo width={20} />
                 </div>
+              ) : connector.icon ? (
+                <div data-content="logo">
+                  <img src={connector.icon} alt={connector.name} />
+                </div>
               ) : null}
               <div>{providerInfo.name || connector.name}</div>
-              <ButtonInlineLoader show={isLoading && connector.id === pendingConnector?.id} />
+              <ButtonInlineLoader show={isLoading} />
             </ConnectorButtonInnerLayout>
-          </ConnectorButtonBlack>
+          </Button>
         );
       })}
-    </ConnectorList>
-  );
-}
-
-function SignInWithEthereumStep({
-  onSuccess,
-  walletClient,
-  onError,
-  onCancel,
-  invoke = false,
-}: {
-  invoke?: boolean;
-  onSuccess: (data: SiweNimiIdAuth) => void | Promise<void>;
-  walletClient: WalletClient;
-  onError: OnErrorFn;
-  onCancel?: () => void;
-}) {
-  const [error, setError] = useState<Error | null>(null);
-
-  const [isLoading, setLoading] = useState(false);
-
-  const requestSiwe = async (walletClient: WalletClient) => {
-    setError(null);
-
-    try {
-      const address = walletClient.account?.address;
-
-      if (!address) {
-        throw new Error('No address');
-      }
-
-      setLoading(true);
-
-      // Request the message from the API
-      const message = await createMessage({
-        address,
-        statement: '',
-      });
-
-      // Ask the wallet to sign the message
-      const signature = await walletClient?.signMessage({
-        account: address,
-        message,
-      });
-
-      // Verify the signature with the API and notify the parent component
-      const { data: auth } = await verifySignature({
-        message,
-        signature,
-      });
-
-      setLoading(false);
-
-      // Notify the parent component
-      onSuccess(auth);
-    } catch (e) {
-      if (e instanceof Error && e.message.includes('User rejected the request')) {
-        setLoading(false);
-        return;
-      }
-
-      console.log(e);
-      setError(e as Error);
-      onError(e as Error);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!walletClient || !invoke) {
-      return;
-    }
-
-    requestSiwe(walletClient);
-
-    return () => {
-      setLoading(false);
-    };
-  }, [walletClient]);
-
-  return (
-    <ConnectorList>
-      <ConnectorButtonBlack onClick={() => requestSiwe(walletClient)}>
-        <ConnectorButtonInnerLayout>
-          <div>Sign in with Ethereum</div>
-          <div>
-            <Tooltip
-              content={
-                <>
-                  This creates a session with your Ethereum address. Using a session, you can manage your ENS names
-                  safely and securely without using your wallet.
-                </>
-              }
-            />
-          </div>
-          <ButtonInlineLoader show={isLoading} />
-        </ConnectorButtonInnerLayout>
-      </ConnectorButtonBlack>
-      <div
-        style={{
-          textAlign: 'center',
-        }}
-      >
-        <small>
-          Connected as{' '}
-          <Tooltip content={<>{walletClient?.account?.address}</>}>
-            <strong>{shortenAddress(walletClient?.account?.address)}</strong>
-          </Tooltip>
-        </small>
-      </div>
-      <div>
-        {error && (
-          <ConnectorButtonInnerLayout>
-            <StyledError>{error.message}</StyledError>
-          </ConnectorButtonInnerLayout>
-        )}
-      </div>
-      <CancelButton onClick={onCancel} title="Cancel and change the wallet provider">
-        <ConnectorButtonInnerLayout>
-          <div>Cancel</div>
-        </ConnectorButtonInnerLayout>
-      </CancelButton>
     </ConnectorList>
   );
 }
@@ -323,39 +167,6 @@ export const ConnectorButtonInnerLayout = styled.div`
     height: 20px;
   }
 `;
-
-export const CancelButton = styled(TextButton)`
-  // min-width: 300px;
-  height: 48px;
-  text-transform: unset;
-  text-decoration: none;
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
-const ConnectorButtonBlack = styled(BlackButton)(
-  (props) => `
-    text-transform: unset;
-    text-decoration: none;
-    position: relative;
-    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-    min-width: 300px;
-    height: 48px;
-    &:hover {
-      .wheel-loader-svg {
-        path {
-          stroke: ${colors.black};
-        }
-      }
-      .tooltip-icon-svg {
-        circle {
-          fill: ${colors.white};
-        }
-      }
-    }
-  `,
-);
 
 const StyledError = styled.div`
   color: red;
