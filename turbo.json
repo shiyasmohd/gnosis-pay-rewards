@@ -41,6 +41,7 @@
     "@karpatkey/gnosis-pay-rewards-indexer": {
       "dependsOn": ["@karpatkey/gnosis-pay-rewards-sdk#build"],
       "env": [
+        "TZ",
         "NODE_ENV",
         "IS_DOCKER",
         "HTTP_SERVER_PORT",
