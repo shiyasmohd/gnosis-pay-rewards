@@ -66,9 +66,7 @@
     "copyWasm": "copy-files-from-to --config copy-files-from-to.json",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "codegen:graphql": "graphql-codegen --config graphql-codegen.yml",
-    "codegen": "pnpm codegen:graphql"
+    "start": "next start"
   },
   "browserslist": {
     "production": [
@@ -85,14 +83,6 @@
     ]
   },
   "devDependencies": {
-    "@graphql-codegen/add": "^3.2.1",
-    "@graphql-codegen/cli": "^3.2.1",
-    "@graphql-codegen/client-preset": "^1.1.5",
-    "@graphql-codegen/introspection": "^4.0.0",
-    "@graphql-codegen/typescript": "^3.0.1",
-    "@graphql-codegen/typescript-operations": "^3.0.1",
-    "@graphql-codegen/typescript-react-apollo": "^3.3.7",
-    "@graphql-codegen/typescript-react-query": "4.0.5",
     "@svgr/webpack": "^8.1.0",
     "@types/debug": "^4.1.8",
     "@types/jest": "^27.5.2",
