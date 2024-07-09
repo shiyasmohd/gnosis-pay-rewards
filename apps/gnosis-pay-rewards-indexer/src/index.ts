@@ -137,7 +137,6 @@ async function startIndexing({
           socketIoServer.emit('currentWeekDataUpdated', updatedWeekDataDocument);
         } else {
           console.log({ error });
-          console.warn('Pending reward document is undefined');
         }
       } catch (e) {
         console.error(e);

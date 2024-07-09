@@ -25,6 +25,14 @@ export async function processSpendLog({
   spendTransactionModel: ReturnType<typeof getSpendTransactionModel>;
   weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
 }) {
+  const savedLog = await spendTransactionModel.findOne({ _id: log.transactionHash });
+  if (savedLog !== null) {
+    return {
+      data: null,
+      error: new Error(`Spend log ${log.transactionHash} already processed`),
+    };
+  }
+
   const { account: rolesModuleAddress, amount: spendAmountRaw, asset: spentTokenAddress } = log.args;
   // Verify that the token is registered as GP token like EURe, GBPe, and USDC
   const spentToken = getGnosisPayTokenByAddress(spentTokenAddress);
