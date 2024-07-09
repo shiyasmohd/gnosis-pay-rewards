@@ -27,8 +27,6 @@ jobs:
           version: nightly
       - name: Install dependencies
         run: pnpm i
-      - name: Codegen
-        run: npx turbo codegen
       - name: Build
         run: npx turbo build
         # These are dummy variables to satisfy next.js build
