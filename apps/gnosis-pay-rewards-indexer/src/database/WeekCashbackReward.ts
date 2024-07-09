@@ -1,4 +1,4 @@
-import { Address } from 'viem';
+import { Address, isAddress } from 'viem';
 import { Model, Mongoose, Schema } from 'mongoose';
 import { weekDataIdFormat } from '@karpatkey/gnosis-pay-rewards-sdk';
 
@@ -22,14 +22,36 @@ export type WeekCashbackRewardDocumentFieldsType = {
 };
 
 const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType>({
-  address: { type: String, required: true },
+  _id: {
+    type: String,
+    required: true,
+    validate(value: string) {
+      const [isoWeek, address] = value.split('/');
+
+      return isoWeek.match(/^\d{4}-\d{2}-\d{2}$/) !== null && isAddress(address);
+    },
+  },
+  address: {
+    type: String,
+    required: true
+  },
   week: {
     type: String,
     required: true,
   },
-  amount: { type: Number, required: true },
-  netUsdVolume: { type: Number, required: true },
-});
+  amount: {
+    type: Number,
+    required: true
+  },
+  netUsdVolume: {
+    type: Number,
+    required: true
+  },
+  },
+  { timestamps: true },
+);
+
+
 
 export const modelName = 'WeekCashbackReward' as const;
 
@@ -40,7 +62,7 @@ export const modelName = 'WeekCashbackReward' as const;
  * @returns
  */
 export function toDocumentId(week: typeof weekDataIdFormat, address: Address) {
-  return `${week}/${address}`;
+  return `${week}/${address.toLowerCase()}`;
 }
 
 export function getWeekCashbackRewardModel(mongooseConnection: Mongoose) {
@@ -57,11 +79,18 @@ export async function getOrCreateWeekCashbackRewardDocument({ week, address, wee
   week: typeof weekDataIdFormat;
   weekCashbackRewardModel: Model<WeekCashbackRewardDocumentFieldsType>;
 }) {
+  address = address.toLowerCase() as Address;
   const documentId = toDocumentId(week, address);
 
   const weekCashbackRewardDocument = await weekCashbackRewardModel.findById(documentId);
   if (weekCashbackRewardDocument === null) {
-    return new weekCashbackRewardModel({ _id: documentId, address, week, amount: 0, netUsdVolume: 0 });
+    return new weekCashbackRewardModel({
+      _id: documentId,
+      address,
+      week,
+      amount: 0,
+      netUsdVolume: 0
+    });
   }
   return weekCashbackRewardDocument;
 }
