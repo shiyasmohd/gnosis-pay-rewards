@@ -34,7 +34,6 @@
     "cids": "^1.1.9",
     "dayjs": "^1.11.7",
     "debug": "^4.3.4",
-    "ethers": "^5.7.2",
     "graphql-request": "^6.1.0",
     "graphql-tag": "^2.12.6",
     "multicodec": "^3.2.1",
