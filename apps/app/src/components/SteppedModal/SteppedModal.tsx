@@ -1,7 +1,7 @@
 import { getExplorerLink } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { ApplicationModal, useModal } from 'ui/modal';
 import {
-  IStepTransactionEntry,
+  StepTransactionEntryStruct,
   StepTransactionEntryComponentProps,
   SteppedModalStandalone,
   SteppedModalStep,
@@ -14,7 +14,7 @@ type GenericSteppedModalProps = Pick<StepTransactionEntryComponentProps, 'getExp
   onClose: () => void;
   title?: string;
   steps: {
-    [stepId: string]: IStepTransactionEntry;
+    [stepId: string]: StepTransactionEntryStruct;
   };
 };
 

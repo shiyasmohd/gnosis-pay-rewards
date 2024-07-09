@@ -63,7 +63,7 @@ function ConnectWalletStep({
 }) {
   const { data: prevWalletClient } = useWalletClient();
   const account = useAccount();
-  const { connectors, isLoading, connectAsync } = useConnect({});
+  const { connectors, connectAsync, isPending, variables } = useConnect({});
 
   const rabby = connectors.find((connector) => connector.id === 'io.rabby');
   const injected = connectors.find((connector) => connector.id === 'injected');
@@ -112,7 +112,7 @@ function ConnectWalletStep({
                 </div>
               ) : null}
               <div>{providerInfo.name || connector.name}</div>
-              <ButtonInlineLoader show={isLoading} />
+              <ButtonInlineLoader show={isPending} />
             </ConnectorButtonInnerLayout>
           </Button>
         );

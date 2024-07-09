@@ -1,5 +1,6 @@
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import type { ContractReceipt, ContractTransaction } from 'ethers';
+import { TransactionReceipt } from 'viem';
+
 import { PropsWithChildren, useEffect } from 'react';
 import { styled } from 'styled-components';
 import {
@@ -18,7 +19,10 @@ import { mainnet } from 'viem/chains';
 /**
  * A Step entry for the Stepped Modal
  */
-export interface IStepTransactionEntry {
+/**
+ * A Step entry for the Stepped Modal
+ */
+export interface StepTransactionEntryStruct {
   /**
    * The order of the step. This is used to sort the steps
    */
@@ -28,8 +32,14 @@ export interface IStepTransactionEntry {
    * Current status of the step
    */
   status: StepStatus;
-  transaction?: ContractTransaction;
-  receipt?: ContractReceipt;
+  /**
+   * The transaction hash of the transaction
+   */
+  transactionHash?: `0x${string}`;
+  /**
+   * The transaction receipt of the transaction
+   */
+  transactionReceipt?: TransactionReceipt;
   /**
    * Skip this step. If true, this step will be hidden from the modal
    */
@@ -40,7 +50,7 @@ export interface IStepTransactionEntry {
   chainId?: number;
 }
 
-export type StepTransactionEntryComponentProps = IStepTransactionEntry & {
+export type StepTransactionEntryComponentProps = StepTransactionEntryStruct & {
   /**
    * Get the explorer link for a transaction
    * @param chainId
@@ -92,21 +102,15 @@ const ModalContent = styled(ModalContentBase)`
 export function SteppedModalStep({
   status,
   text,
-  receipt,
-  transaction,
+  transactionReceipt,
+  transactionHash,
   hide,
   chainId = mainnet.id,
   getExplorerLink,
 }: StepTransactionEntryComponentProps) {
   if (hide) return null;
 
-  const transactionLink = transaction
-    ? getExplorerLink(
-        chainId !== undefined && chainId > 0 ? chainId : transaction.chainId,
-        transaction.hash,
-        'transaction',
-      )
-    : undefined;
+  const transactionLink = transactionHash ? getExplorerLink(chainId, transactionHash, 'transaction') : undefined;
 
   return (
     <>

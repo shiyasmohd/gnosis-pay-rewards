@@ -111,7 +111,7 @@ export function UpdateAddressLabelDialogForm({
   label,
 }: {
   address: string;
-  chainId: ChainId;
+  chainId: number;
   label?: string;
   onUpdated?: (newLabel: string) => void;
 }) {

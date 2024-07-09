@@ -1,11 +1,11 @@
-import { IStepTransactionEntry } from './SteppedModalParts';
+import { StepTransactionEntryStruct } from './SteppedModalParts';
 import { NoModalDataProvidedError } from 'components/Modal/utils';
 import { ApplicationModal, useModal } from 'ui/modal';
 import { useCallback } from 'react';
 
 // takes the keys of the steps and transform them into steps: { [key: string]: StepTransactionEntryStruct }
 type GenericSteppedModalStructureTransformer<Keys extends string[]> = {
-  [key in Keys[number]]: IStepTransactionEntry;
+  [key in Keys[number]]: StepTransactionEntryStruct;
 };
 
 /**
@@ -37,7 +37,7 @@ export function useGenericSteppedModal<ModalTitle extends string, StepKeys exten
   );
 
   const updateStep = useCallback(
-    (stepKey: keyof ModalDataType['steps'], nextStepData: Partial<IStepTransactionEntry>) => {
+    (stepKey: keyof ModalDataType['steps'], nextStepData: Partial<StepTransactionEntryStruct>) => {
       setModalData((data) => {
         if (data === null) {
           throw new NoModalDataProvidedError(ApplicationModal.GENERIC_STEPPED_MODAL);
