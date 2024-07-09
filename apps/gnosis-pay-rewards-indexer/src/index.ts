@@ -78,6 +78,8 @@ async function startIndexing({
   } else {
     // Clean up the database
     await spendTransactionModel.deleteMany();
+    await weekCashbackRewardModel.deleteMany();
+    await weekDataModel.deleteMany();
   }
 
   let toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);
