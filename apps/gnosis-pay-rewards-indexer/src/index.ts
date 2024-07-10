@@ -19,7 +19,7 @@ import { addSocketComms } from './addSocketComms.js';
 import { processSpendLog } from './processSpendLog.js';
 import { getOrCreateWeekDataDocument, getWeekDataModel } from './database/weekData.js';
 import { getGnosisPayRefundLogs } from './getGnosisPayRefundLogs.js';
-import { getWeekCashbackRewardModel } from './database/weekCashbackReward_.js';
+import { getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
 const resumeIndexing = false;

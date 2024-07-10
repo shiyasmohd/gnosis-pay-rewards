@@ -11,7 +11,7 @@ import { Address, PublicClient, Transport, erc20Abi, formatUnits } from 'viem';
 import { gnosis } from 'viem/chains';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
 import { getSpendTransactionModel } from './database/spendTransaction.js';
-import { getOrCreateWeekCashbackRewardDocument, getWeekCashbackRewardModel } from './database/weekCashbackReward_.js';
+import { getOrCreateWeekCashbackRewardDocument, getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
 import { getBlockByNumber } from './getBlockByNumber.js';
 
 export async function processSpendLog({

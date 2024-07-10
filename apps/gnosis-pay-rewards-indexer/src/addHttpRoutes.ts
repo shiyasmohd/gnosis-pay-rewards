@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { isAddress } from 'viem';
 import { buildExpressApp } from './server.js';
 import { getSpendTransactionModel } from './database/spendTransaction.js';
-import { getOrCreateWeekCashbackRewardDocument, getWeekCashbackRewardModel } from './database/weekCashbackReward_.js';
+import { getOrCreateWeekCashbackRewardDocument, getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
 import { dayjs } from './lib/dayjs.js';
 import { toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
 
