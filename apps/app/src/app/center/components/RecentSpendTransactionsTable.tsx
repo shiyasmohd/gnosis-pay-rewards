@@ -28,8 +28,11 @@ dayjs.extend(dayjsUtcPlugin);
 
 const tableColumns: ColumnDef<SpendTransactionFieldsTypePopulated>[] = [
   {
-    accessorKey: 'date',
+    accessorKey: 'blockTimestamp',
     header: 'Date',
+    cell({ row }) {
+      return dayjs.unix(row.original.blockTimestamp).format('MM/DD/YYYY HH:mm');
+    },
   },
   {
     accessorKey: 'blockNumber',
@@ -50,6 +53,7 @@ const tableColumns: ColumnDef<SpendTransactionFieldsTypePopulated>[] = [
   {
     accessorKey: 'safeAddress',
     header: 'GP Safe',
+    enableHiding: true,
     cell({ row }) {
       return (
         <ViewAddressOnExplorerLinkButton
@@ -66,7 +70,7 @@ const tableColumns: ColumnDef<SpendTransactionFieldsTypePopulated>[] = [
       const formattedTransactionValue = `${row.original?.spentToken?.symbol} ${row.original?.spentAmount?.toString()}`;
       const formattedTransactionValueUsd = `$${numeral(row.original?.spentAmountUsd).format('0,0.00')}`;
 
-      return `${formattedTransactionValue} / (${formattedTransactionValueUsd})`;
+      return `${formattedTransactionValue} (${formattedTransactionValueUsd})`;
     },
   },
   {
@@ -77,9 +81,15 @@ const tableColumns: ColumnDef<SpendTransactionFieldsTypePopulated>[] = [
 
 interface RecentSpendTransactionsTableProps {
   data: SpendTransactionFieldsTypePopulated[];
+  hideSafeAddressColumn?: boolean;
+  showFilterInput?: boolean;
 }
 
-export function RecentSpendTransactionsTable({ data }: RecentSpendTransactionsTableProps) {
+export function RecentSpendTransactionsTable({
+  data,
+  hideSafeAddressColumn = false,
+  showFilterInput = true,
+}: RecentSpendTransactionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
@@ -95,19 +105,24 @@ export function RecentSpendTransactionsTable({ data }: RecentSpendTransactionsTa
     state: {
       sorting,
       columnFilters,
+      columnVisibility: {
+        safeAddress: !hideSafeAddressColumn,
+      },
     },
   });
 
   return (
     <div>
-      <div className="flex items-center py-4">
-        <Input
-          placeholder="Filter ..."
-          value={(table.getColumn('transactionHash')?.getFilterValue() as string) ?? ''}
-          onChange={(event) => table.getColumn('transactionHash')?.setFilterValue(event.target.value)}
-          className="max-w-sm"
-        />
-      </div>
+      {showFilterInput === true ? (
+        <div className="flex items-center py-4">
+          <Input
+            placeholder="Filter ..."
+            value={(table.getColumn('transactionHash')?.getFilterValue() as string) ?? ''}
+            onChange={(event) => table.getColumn('transactionHash')?.setFilterValue(event.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+      ) : null}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
