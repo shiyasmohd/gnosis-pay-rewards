@@ -18,6 +18,8 @@ export type WeekSnapshotDocumentFieldsType = {
   transactions: string[];
 };
 
+export type WeekIdType = 'YYYY-MM-DD';
+
 /**
  * ISO 8601 date format
  */
@@ -28,9 +30,9 @@ export const weekDataIdFormat = 'YYYY-MM-DD' as const;
  * @param unixTimestamp - The Unix timestamp
  * @returns The week data ID
  */
-export function toWeekDataId(unixTimestamp: number): string {
+export function toWeekDataId(unixTimestamp: number): WeekIdType {
   const weekStart = dayjs.unix(unixTimestamp).utc().startOf('week');
   const yyyyMMDD = weekStart.format(weekDataIdFormat);
 
-  return yyyyMMDD;
+  return yyyyMMDD as WeekIdType;
 }
