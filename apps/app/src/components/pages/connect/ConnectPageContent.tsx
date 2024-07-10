@@ -1,18 +1,13 @@
 'use client';
-import { ConnectResult } from '@wagmi/core';
 import { useRouter } from 'next/navigation';
 import { styled } from 'styled-components';
-import { Connector, ConnectorAlreadyConnectedError, useAccount, useConnect, useWalletClient } from 'wagmi';
+import { useMemo } from 'react';
+import { Connector, ConnectorAlreadyConnectedError, useAccount, useConnect } from 'wagmi';
 import { mainnet } from 'viem/chains';
-import { colors, fontSizes } from 'ui/constants';
+import { fontSizes } from 'ui/constants';
 import { ButtonInlineLoader } from 'components/Loader';
 import { popularProviders } from './popularProviders';
-import { WalletClient } from 'viem';
 import { Button } from '@/components/ui/button';
-
-type OnWalletConnectFn = (data: ConnectResult) => void | Promise<void>;
-type OnHandleSiweFn = (walletClient: WalletClient) => void | Promise<void>;
-type OnErrorFn = (error: Error) => void;
 
 export function ConnectPageContent({
   next,
@@ -23,17 +18,12 @@ export function ConnectPageContent({
   next?: string;
 }) {
   const { push: navigate } = useRouter();
-  const { data: walletClient } = useWalletClient();
 
   /**
    * Redirect to the next page if specified, otherwise redirect to the overview page
    * @param auth  The auth data returned from the Siwe API
    */
   const onSuccess = async (auth?: any) => {
-    console.log({
-      auth,
-    });
-
     // Redirect
     if (next) {
       navigate(next);
@@ -54,32 +44,24 @@ export function ConnectPageContent({
   );
 }
 
-function ConnectWalletStep({
-  onWalletConnect,
-  onHandleSiwe,
-}: {
-  onWalletConnect: () => void;
-  onHandleSiwe?: OnHandleSiweFn;
-}) {
-  const { data: prevWalletClient } = useWalletClient();
+function ConnectWalletStep({ onWalletConnect }: { onWalletConnect: () => void }) {
   const account = useAccount();
-  const { connectors, connectAsync, isPending, variables } = useConnect({});
+  const { connectors, connectAsync, isPending } = useConnect({});
 
-  const rabby = connectors.find((connector) => connector.id === 'io.rabby');
-  const injected = connectors.find((connector) => connector.id === 'injected');
-  const phantom = connectors.find((connector) => connector.id === 'app.phantom');
-  const coinbase = connectors.find((connector) => connector.id === 'coinbaseWalletSDK');
-  const walletConnect = connectors.find((connector) => connector.id === 'walletConnect');
+  const sortedConnectors = useMemo(() => {
+    const rabby = connectors.find((connector) => connector.id === 'io.rabby');
+    const injected = connectors.find((connector) => connector.id === 'injected');
+    const phantom = connectors.find((connector) => connector.id === 'app.phantom');
+    const coinbase = connectors.find((connector) => connector.id === 'coinbaseWalletSDK');
+    const walletConnect = connectors.find((connector) => connector.id === 'walletConnect');
 
-  const sortedConnectors = [
-    // Browser first,
-    rabby ? rabby : injected,
-    phantom,
-    coinbase,
-    walletConnect,
-  ].filter(Boolean) as Connector[];
+    const sortedConnectors = [rabby ? rabby : injected, phantom, coinbase, walletConnect].filter(
+      Boolean,
+    ) as Connector[];
 
-  console.log({ connectors, sortedConnectors });
+    return sortedConnectors;
+  }, [connectors]);
+
   return (
     <ConnectorList>
       {sortedConnectors.map((connector) => {

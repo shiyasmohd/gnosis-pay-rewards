@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'gno-lcmm',
+      name: 'gnosis-pay-rewards-indexer',
       script: 'dist/index.js',
       watch: '.',
       kill_timeout: 10000,
