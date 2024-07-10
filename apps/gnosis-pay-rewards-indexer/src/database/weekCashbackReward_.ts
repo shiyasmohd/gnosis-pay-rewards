@@ -1,6 +1,7 @@
 import { Address, isAddress } from 'viem';
 import { Model, Mongoose, Schema } from 'mongoose';
 import { weekDataIdFormat } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { dayjs } from '../lib/dayjs.js';
 
 export type WeekCashbackRewardDocumentFieldsType = {
   _id: `${typeof weekDataIdFormat}/${Address}`; // e.g. 2024-03-01/0x123456789abcdef123456789abcdef123456789ab
@@ -52,9 +53,7 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
 );
 
 
-
 export const modelName = 'WeekCashbackReward' as const;
-
 
 /**
  * @param week - e.g. 2024-03-01
@@ -64,6 +63,17 @@ export const modelName = 'WeekCashbackReward' as const;
 export function toDocumentId(week: typeof weekDataIdFormat, address: Address) {
   return `${week}/${address.toLowerCase()}`;
 }
+
+/**
+ * Get the current week id
+ * @returns e.g. 2024-03-01
+ */
+export function getCurrentWeekId() {
+  const now = dayjs.utc();
+  const isoWeek = now.format(weekDataIdFormat);
+  return isoWeek;
+}
+
 
 export function getWeekCashbackRewardModel(mongooseConnection: Mongoose) {
   // Return cached model if it exists

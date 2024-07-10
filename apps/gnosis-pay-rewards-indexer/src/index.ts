@@ -10,7 +10,7 @@ import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
 import { getTokenModel, migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
 import { clampToBlockRange } from './utils.js';
 import { buildSocketIoServer, buildExpressApp } from './server.js';
-import { SOCKET_IO_SERVER_PORT, MONGODB_URI } from './config/env.js';
+import { SOCKET_IO_SERVER_PORT, MONGODB_URI, HTTP_SERVER_HOST, HTTP_SERVER_PORT } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
 import { createConnection } from './database/createConnection.js';
 import { getSpendTransactionModel } from './database/spendTransaction.js';
@@ -19,7 +19,7 @@ import { addSocketComms } from './addSocketComms.js';
 import { processSpendLog } from './processSpendLog.js';
 import { getOrCreateWeekDataDocument, getWeekDataModel } from './database/weekData.js';
 import { getGnosisPayRefundLogs } from './getGnosisPayRefundLogs.js';
-import { getWeekCashbackRewardModel } from './database/WeekCashbackReward.js';
+import { getWeekCashbackRewardModel } from './database/weekCashbackReward_.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
 const resumeIndexing = false;
@@ -46,17 +46,19 @@ async function startIndexing({
   const weekCashbackRewardModel = getWeekCashbackRewardModel(mongooseConnection);
   const weekDataModel = getWeekDataModel(mongooseConnection);
 
-  const expressApp = addHttpRoutes({
+  const restApiServer = addHttpRoutes({
     expressApp: buildExpressApp(),
     spendTransactionModel,
+    weekCashbackRewardModel,
   });
 
   const socketIoServer = addSocketComms({
-    socketIoServer: buildSocketIoServer(expressApp),
+    socketIoServer: buildSocketIoServer(restApiServer),
     spendTransactionModel,
     weekDataModel,
   });
 
+  restApiServer.listen(HTTP_SERVER_PORT, HTTP_SERVER_HOST);
   socketIoServer.listen(SOCKET_IO_SERVER_PORT);
 
   console.log('Starting indexing');
