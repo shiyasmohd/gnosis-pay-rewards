@@ -1,5 +1,4 @@
 import {
-  gnoTokenAddress,
   getGnosisPayTokenByAddress,
   SpendTransactionFieldsTypePopulated,
   getOraclePriceAtBlockNumber,
@@ -7,12 +6,19 @@ import {
   toWeekDataId,
   weekDataIdFormat,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { Address, PublicClient, Transport, erc20Abi, formatUnits } from 'viem';
+import { PublicClient, Transport, formatUnits } from 'viem';
 import { gnosis } from 'viem/chains';
 import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
 import { getSpendTransactionModel } from './database/spendTransaction.js';
-import { getOrCreateWeekCashbackRewardDocument, getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
+import {
+  WeekCashbackRewardDocumentFieldsType_Unpopulated,
+  getOrCreateWeekCashbackRewardDocument,
+  getWeekCashbackRewardModel,
+} from './database/weekCashbackReward.js';
 import { getBlockByNumber } from './getBlockByNumber.js';
+import { getGnosisPaySafeAddressFromModule } from './getGnosisPaySafeAddressFromModule.js';
+import { getGnoTokenBalance } from './getGnoTokenBalance.js';
+import { calculateWeekRewardWithTransactions } from './calculateWeekReward.js';
 
 export async function processSpendLog({
   client,
@@ -29,7 +35,9 @@ export async function processSpendLog({
   if (savedLog !== null) {
     return {
       data: null,
-      error: new Error(`Spend log ${log.transactionHash} already processed`),
+      error: new Error(`Spend log ${log.transactionHash} already processed`, {
+        cause: 'LOG_ALREADY_PROCESSED',
+      }),
     };
   }
 
@@ -47,29 +55,19 @@ export async function processSpendLog({
   const { data: block } = await getBlockByNumber({ client, blockNumber: log.blockNumber });
 
   if (!block) {
-    /**
-     * @todo make this a retryable error
-     */
-    console.error(`Block #${log.blockNumber} not found`);
     return {
       data: null,
-      error: new Error(`Block #${log.blockNumber} not found`),
+      error: new Error(`Block #${log.blockNumber} not found`, {
+        cause: 'BLOCK_NOT_FOUND',
+      }),
     };
   }
 
-  const gnosisPaySafeAddress = (await client.readContract({
-    abi: [
-      {
-        name: 'avatar',
-        outputs: [{ internalType: 'address', name: '', type: 'address' }],
-        stateMutability: 'view',
-        type: 'function',
-      },
-    ],
-    functionName: 'avatar',
-    address: rolesModuleAddress,
+  const gnosisPaySafeAddress = await getGnosisPaySafeAddressFromModule({
+    rolesModuleAddress,
     blockNumber: log.blockNumber,
-  })) as Address;
+    client,
+  });
 
   const gnosisPaySafeGnoTokenBalance = await getGnoTokenBalance({
     address: gnosisPaySafeAddress,
@@ -83,52 +81,91 @@ export async function processSpendLog({
     token: spentTokenAddress,
   });
 
-  const spentAmount = Number(formatUnits(spendAmountRaw, spentToken.decimals));
-  const spentAmountUsd = latestRoundDataAtBlock.data?.price ? spentAmount * latestRoundDataAtBlock.data.price : 0;
-
-  const gnoBalanceFloat = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
-
-  const spendTransactionDocument = await new spendTransactionModel({
-    _id: log.transactionHash,
-    blockNumber: Number(log.blockNumber),
-    blockTimestamp: Number(block.timestamp),
-    transactionHash: log.transactionHash,
-    gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
-    gnoBalance: gnoBalanceFloat,
-    safeAddress: gnosisPaySafeAddress,
-    spentAmountRaw: spendAmountRaw.toString(),
-    spentAmount,
-    spentAmountUsd,
-    spentToken: spentTokenAddress,
-  }).save();
-
-  const spendTransactionUnpopulated = spendTransactionDocument.toJSON();
-
-  // Manually populate the spentToken and safeAddress fields
-  const spendTransactionJsonData: SpendTransactionFieldsTypePopulated = {
-    ...spendTransactionUnpopulated,
-    spentToken: {
-      ...spentToken,
-      _id: spentTokenAddress,
-    },
-  };
-
-  // Update the week cashback reward document
-  const weekCashbackRewardDocument = await getOrCreateWeekCashbackRewardDocument({
-    week: toWeekDataId(Number(block.timestamp)) as typeof weekDataIdFormat,
-    address: gnosisPaySafeAddress,
-    weekCashbackRewardModel,
+  const gnoTokenPriceDataAtBlock = await getOraclePriceAtBlockNumber({
+    blockNumber: log.blockNumber,
+    client,
+    token: gnoToken.address,
   });
 
-  weekCashbackRewardDocument.gnoBalanceRaw = gnosisPaySafeGnoTokenBalance.toString();
-  /**
-   * @todo fix this logic later, it must be the lowest GNO balance of the week
-   */
-  weekCashbackRewardDocument.gnoBalance = gnoBalanceFloat;
-  weekCashbackRewardDocument.netUsdVolume = spentAmountUsd;
-  await weekCashbackRewardDocument.save();
+  const spentAmount = Number(formatUnits(spendAmountRaw, spentToken.decimals));
+  const spentAmountUsd = latestRoundDataAtBlock.data?.price ? spentAmount * latestRoundDataAtBlock.data.price : 0;
+  const gnoBalanceFloat = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
 
-  const weekCashbackRewardJsonData = weekCashbackRewardDocument.toJSON();
+  // Start a session to ensure atomicity
+  const mongooseSession = await spendTransactionModel.startSession();
+
+  let spendTransactionJsonData = {} as SpendTransactionFieldsTypePopulated;
+  let weekCashbackRewardJsonData = {} as WeekCashbackRewardDocumentFieldsType_Unpopulated;
+
+  await mongooseSession.withTransaction(async () => {
+    const spendTransactionDocument = await new spendTransactionModel({
+      _id: log.transactionHash,
+      blockNumber: Number(log.blockNumber),
+      blockTimestamp: Number(block.timestamp),
+      weekId: toWeekDataId(Number(block.timestamp)),
+      transactionHash: log.transactionHash,
+      gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
+      gnoBalance: gnoBalanceFloat,
+      safeAddress: gnosisPaySafeAddress,
+      spentAmountRaw: spendAmountRaw.toString(),
+      spentAmount,
+      spentAmountUsd,
+      spentToken: spentTokenAddress,
+    }).save({ session: mongooseSession });
+
+    // Manually populate the spentToken and safeAddress fields
+    spendTransactionJsonData = {
+      ...spendTransactionDocument.toJSON(),
+      spentToken: {
+        ...spentToken,
+        _id: spentTokenAddress,
+      },
+    };
+
+    // All spend transactions for the week
+    const allSpendTransactions = [
+      spendTransactionDocument.toJSON(), // we include this manually this since the document hasn't been saved to the database yet
+      ...(await spendTransactionModel
+        .find({
+          safeAddress: gnosisPaySafeAddress,
+          weekId: toWeekDataId(Number(block.timestamp)) as typeof weekDataIdFormat,
+        })
+        .lean()),
+    ];
+
+    // Update the week cashback reward document
+    const weekCashbackRewardSnapshot = await getOrCreateWeekCashbackRewardDocument({
+      address: gnosisPaySafeAddress,
+      weekCashbackRewardModel,
+      week: toWeekDataId(Number(block.timestamp)) as typeof weekDataIdFormat,
+    });
+
+    weekCashbackRewardSnapshot.netUsdVolume = spentAmountUsd;
+    // Add the spend transaction to the week cashback reward document
+    weekCashbackRewardSnapshot.transactions.push(spendTransactionDocument._id);
+
+    if (gnoBalanceFloat > weekCashbackRewardSnapshot.maxGnoBalance) {
+      weekCashbackRewardSnapshot.maxGnoBalance = gnoBalanceFloat;
+    }
+    if (gnoBalanceFloat < weekCashbackRewardSnapshot.minGnoBalance) {
+      weekCashbackRewardSnapshot.minGnoBalance = gnoBalanceFloat;
+    }
+
+    const estimatedReward = await calculateWeekRewardWithTransactions({
+      gnoUsdPrice: gnoTokenPriceDataAtBlock.data?.price ?? 0,
+      transactions: allSpendTransactions,
+      isOgNftHolder: false,
+    });
+
+    // Calculate the estimated reward for the week
+    weekCashbackRewardSnapshot.estimatedReward = estimatedReward;
+
+    await weekCashbackRewardSnapshot.save({ session: mongooseSession });
+    weekCashbackRewardJsonData = weekCashbackRewardSnapshot.toJSON();
+  });
+
+  await mongooseSession.commitTransaction();
+  await mongooseSession.endSession();
 
   return {
     error: null,
@@ -137,22 +174,4 @@ export async function processSpendLog({
       weekCashbackReward: weekCashbackRewardJsonData,
     },
   };
-}
-
-function getGnoTokenBalance({
-  client,
-  address,
-  blockNumber,
-}: {
-  client: PublicClient<Transport, typeof gnosis>;
-  address: Address;
-  blockNumber: bigint;
-}) {
-  return client.readContract({
-    abi: erc20Abi,
-    address: gnoTokenAddress,
-    functionName: 'balanceOf',
-    args: [address],
-    blockNumber,
-  });
 }

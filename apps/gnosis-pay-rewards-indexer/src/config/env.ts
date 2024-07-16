@@ -60,3 +60,8 @@ export const JSON_RPC_PROVIDER_GNOSIS = env.JSON_RPC_PROVIDER_GNOSIS as string;
  * Websocket JSON RPC Providers
  */
 export const WEBSOCKET_JSON_RPC_PROVIDER_GNOSIS = env.WEBSOCKET_JSON_RPC_PROVIDER_GNOSIS as string;
+
+/**
+ * Whether to resume indexing from the last block or start from the beginning
+ */
+export const RESUME_INDEXING = env.RESUME_INDEXING === 'true' ? true : false;

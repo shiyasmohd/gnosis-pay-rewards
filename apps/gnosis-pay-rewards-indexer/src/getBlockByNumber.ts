@@ -1,9 +1,6 @@
+import { ConditionalReturnType } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { PublicClient, Transport, Block } from 'viem';
 import { gnosis } from 'viem/chains';
-
-type ConditionalReturnType<T extends boolean, A, B> = T extends true
-  ? { data: A; error: null }
-  : { data: null; error: B };
 
 const blockCache = new Map<bigint, Block>();
 
