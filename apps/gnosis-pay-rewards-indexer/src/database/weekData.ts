@@ -14,7 +14,7 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
       default: [],
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 ).index({ date: 1 }, { unique: true });
 
 export const modelName = 'WeekData' as const;

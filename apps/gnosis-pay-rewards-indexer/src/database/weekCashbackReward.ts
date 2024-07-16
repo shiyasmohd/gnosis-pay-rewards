@@ -1,57 +1,85 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Address, isAddress } from 'viem';
-import { Model, Mongoose, Schema } from 'mongoose';
-import { weekDataIdFormat } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {  HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
+import { weekDataIdFormat, SpendTransactionFieldsTypeUnpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { modelName as transactionModelName  } from './spendTransaction.js';
 import { dayjs } from '../lib/dayjs.js';
 
-export type WeekCashbackRewardDocumentFieldsType = {
+export type WeekCashbackRewardDocumentFieldsTypeBase<TransactionsFieldType> = {
   _id: `${typeof weekDataIdFormat}/${Address}`; // e.g. 2024-03-01/0x123456789abcdef123456789abcdef123456789ab
   address: Address;
   week: typeof weekDataIdFormat;
-  amount: number;
   /**
-   * The raw GNO balance of the user at the end of the week
+   * The estimated reward for the week
    */
-  gnoBalanceRaw: string;
+  estimatedReward: number;
+  /**
+   * The highest GNO balance of the user at the end of the week
+   */
+  maxGnoBalance: number;
   /**
    * The lowest GNO balance of the user at the end of the week
    */
-  gnoBalance: number;
+  minGnoBalance: number;
   /**
    * The net USD volume of the user at the end of the week, refunds will reduce this number
    */
   netUsdVolume: number;
+  /**
+   * The transactions that were used to calculate the cashback reward
+   */
+  transactions: TransactionsFieldType[];
 };
 
-const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType>({
-  _id: {
-    type: String,
-    required: true,
-    validate(value: string) {
-      const [isoWeek, address] = value.split('/');
+export type WeekCashbackRewardDocumentFieldsType_Unpopulated = WeekCashbackRewardDocumentFieldsTypeBase<string>;
+export type WeekCashbackRewardDocumentFieldsType_Populated =
+  WeekCashbackRewardDocumentFieldsTypeBase<SpendTransactionFieldsTypeUnpopulated>;
 
-      return isoWeek.match(/^\d{4}-\d{2}-\d{2}$/) !== null && isAddress(address);
+const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType_Unpopulated>(
+  {
+    _id: {
+      type: String,
+      required: true,
+      validate(value: string) {
+        const [isoWeek, address] = value.split('/');
+
+        return isoWeek.match(/^\d{4}-\d{2}-\d{2}$/) !== null && isAddress(address);
+      },
     },
-  },
-  address: {
-    type: String,
-    required: true
-  },
-  week: {
-    type: String,
-    required: true,
-  },
-  amount: {
-    type: Number,
-    required: true
-  },
-  netUsdVolume: {
-    type: Number,
-    required: true
-  },
+    address: {
+      type: String,
+      required: true,
+    },
+    week: {
+      type: String,
+      required: true,
+    },
+    netUsdVolume: {
+      type: Number,
+      required: true,
+    },
+    maxGnoBalance: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    minGnoBalance: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    estimatedReward: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    transactions: [{
+      type: String,
+      ref: transactionModelName,
+    }],
   },
   { timestamps: true },
 );
-
 
 export const modelName = 'WeekCashbackReward' as const;
 
@@ -74,33 +102,50 @@ export function getCurrentWeekId() {
   return isoWeek;
 }
 
-
 export function getWeekCashbackRewardModel(mongooseConnection: Mongoose) {
   // Return cached model if it exists
   if (mongooseConnection.models[modelName]) {
-    return mongooseConnection.models[modelName] as Model<WeekCashbackRewardDocumentFieldsType>;
+    return mongooseConnection.models[modelName] as Model<WeekCashbackRewardDocumentFieldsType_Unpopulated>;
   }
 
   return mongooseConnection.model(modelName, weekCashbackRewardSchema);
 }
 
-export async function getOrCreateWeekCashbackRewardDocument({ week, address, weekCashbackRewardModel }: {
+export async function getOrCreateWeekCashbackRewardDocument<Populated extends boolean = false>({
+  address,
+  weekCashbackRewardModel,
+  week,
+  populateTransactions = false as Populated,
+}: {
+  populateTransactions?: Populated;
   address: Address;
   week: typeof weekDataIdFormat;
-  weekCashbackRewardModel: Model<WeekCashbackRewardDocumentFieldsType>;
-}) {
+  weekCashbackRewardModel: Model<WeekCashbackRewardDocumentFieldsType_Unpopulated>;
+}): Promise<Populated extends true ? HydratedDocument<WeekCashbackRewardDocumentFieldsType_Populated> : HydratedDocument<WeekCashbackRewardDocumentFieldsType_Unpopulated>> {
   address = address.toLowerCase() as Address;
   const documentId = toDocumentId(week, address);
 
-  const weekCashbackRewardDocument = await weekCashbackRewardModel.findById(documentId);
+  const query = weekCashbackRewardModel.findById(documentId);
+
+  if (populateTransactions) {
+    query.populate<{ transactions: SpendTransactionFieldsTypeUnpopulated[] }>('transactions');
+  }
+
+  const weekCashbackRewardDocument = await query.exec();
+
   if (weekCashbackRewardDocument === null) {
-    return new weekCashbackRewardModel({
+
+    const newDoc = await new weekCashbackRewardModel({
       _id: documentId,
       address,
       week,
       amount: 0,
-      netUsdVolume: 0
-    });
+      netUsdVolume: 0,
+      transactions: [],
+    }).save();
+
+    return newDoc as any;
   }
-  return weekCashbackRewardDocument;
+
+  return weekCashbackRewardDocument as any;
 }

@@ -1,8 +1,8 @@
-import { SpendTransactionFieldsTypeUnpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { SpendTransactionFieldsTypeUnpopulated, isValidWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model, Mongoose, Schema } from 'mongoose';
 import { Address, isAddress, isHash } from 'viem';
 
-const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpopulated>(
+export const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpopulated>(
   {
     _id: {
       type: String,
@@ -15,6 +15,14 @@ const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpopulated>
     blockNumber: {
       type: Number,
       required: true,
+    },
+    weekId: {
+      type: String,
+      required: true,
+      validate: {
+        validator: (value: string) => isValidWeekDataId(value),
+        message: '{VALUE} is not a valid week ID, must be in YYYY-MM-DD format',
+      },
     },
     blockTimestamp: {
       type: Number,
@@ -60,7 +68,7 @@ const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpopulated>
   },
   {
     _id: false,
-  },
+  }
 );
 
 export const modelName = 'SpendTransaction' as const;
