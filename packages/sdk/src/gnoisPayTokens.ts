@@ -15,6 +15,7 @@ export const gnoToken: SerializableErc20TokenType = {
   decimals: 18,
   name: 'Gnosis',
   chainId: 100,
+  oracle: '0x22441d81416430A54336aB28765abd31a792Ad37',
 } as const;
 
 /**

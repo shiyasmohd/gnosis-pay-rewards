@@ -1,5 +1,6 @@
 import type { Address } from 'viem';
 import { TokenDocumentFieldsType } from './gnosisPayToken';
+import { WeekIdType } from './weekData';
 
 // https://niftyfair.io/gnosis/collection/0x88997988a6a5aaf29ba973d298d276fe75fb69ab/
 // this is where you can mint the OG NFT
@@ -10,6 +11,10 @@ export type SpendTransactionFieldsType<SpentTokenFieldType> = {
    * The number of the block
    */
   blockNumber: number;
+  /**
+   * The week that this transaction belongs to
+   */
+  weekId: WeekIdType;
   /**
    * The timestamp of the block
    */

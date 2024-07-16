@@ -30,8 +30,12 @@ export async function getOraclePriceAtBlockNumber({
   try {
     const tokenInfo = getGnosisPayTokenByAddress(token);
 
-    if (!tokenInfo || !tokenInfo.oracle) {
-      throw new Error('Token does not have an oracle');
+    if (!tokenInfo) {
+      throw new Error('Token does not exist in SDK');
+    }
+
+    if (!tokenInfo.oracle) {
+      throw new Error(`Token (${tokenInfo.symbol}) has no oracle`);
     }
 
     const contract = getContract({

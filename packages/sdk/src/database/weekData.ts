@@ -36,3 +36,12 @@ export function toWeekDataId(unixTimestamp: number): WeekIdType {
 
   return yyyyMMDD as WeekIdType;
 }
+
+/**
+ * Check if a week data ID is valid
+ * @param weekDataId - The week data ID
+ * @returns True if the week data ID is valid, false otherwise
+ */
+export function isValidWeekDataId(weekDataId: string): boolean {
+  return weekDataId.match(/^\d{4}-\d{2}-\d{2}$/) !== null; // YYYY-MM-DD
+}
