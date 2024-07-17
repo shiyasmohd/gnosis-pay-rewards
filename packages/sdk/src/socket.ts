@@ -1,11 +1,15 @@
 import type { Server as SocketIoServer } from 'socket.io';
 
-import { SpendTransactionFieldsTypePopulated } from './database/spendTransaction';
+import { GnosisPayTransactionFieldsType_Populated } from './database/spendTransaction';
 import { WeekSnapshotDocumentFieldsType } from './database/weekData';
 
 export interface GnosisPayRewardsServerToClientEventsType {
-  newSpendTransaction: (data: SpendTransactionFieldsTypePopulated) => void;
-  recentSpendTransactions: (data: SpendTransactionFieldsTypePopulated[]) => void;
+  newTransaction: (data: GnosisPayTransactionFieldsType_Populated) => void;
+  recentTransactions: (data: GnosisPayTransactionFieldsType_Populated[]) => void;
+  newSpendTransaction: (data: GnosisPayTransactionFieldsType_Populated) => void;
+  recentSpendTransactions: (data: GnosisPayTransactionFieldsType_Populated[]) => void;
+  newRefundTransaction: (data: GnosisPayTransactionFieldsType_Populated) => void;
+  recentRefundTransactions: (data: GnosisPayTransactionFieldsType_Populated[]) => void;
   currentWeekData: (data: WeekSnapshotDocumentFieldsType) => void;
   currentWeekDataUpdated: (data: WeekSnapshotDocumentFieldsType) => void;
   weekDataByTimestamp: (data: WeekSnapshotDocumentFieldsType | null) => void;

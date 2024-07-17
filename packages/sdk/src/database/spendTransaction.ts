@@ -5,8 +5,18 @@ import { WeekIdType } from './weekData';
 // https://niftyfair.io/gnosis/collection/0x88997988a6a5aaf29ba973d298d276fe75fb69ab/
 // this is where you can mint the OG NFT
 
-export type SpendTransactionFieldsType<SpentTokenFieldType> = {
+
+export enum GnosisPayTransactionType {
+  Spend = 'Spend',
+  Refund = 'Refund',
+}
+
+export type GnosisPayTransactionFieldsType<SpentTokenFieldType> = {
   _id: string;
+  /**
+   * The type of the transaction
+   */
+  type: GnosisPayTransactionType;
   /**
    * The number of the block
    */
@@ -32,9 +42,13 @@ export type SpendTransactionFieldsType<SpentTokenFieldType> = {
    */
   gnoBalance: number;
   /**
+   * The USD price of the GNO token, fetched at the blockNumber
+   */
+  gnoUsdPrice: number;
+  /**
    * The amount of the GNO token that the Safe avatar received
    */
-  gnoRewardAmount?: string;
+  estiamtedGnoRewardAmount: number;
   /**
    * The original Safe avatar that spend the money
    */
@@ -42,20 +56,20 @@ export type SpendTransactionFieldsType<SpentTokenFieldType> = {
   /**
    * The amount of the token that the Safe avatar spent
    */
-  spentAmountRaw: string;
+  amountRaw: string;
   /**
    * Use this as the value to display to the user
    */
-  spentAmount: number;
+  amount: number;
   /**
    * The amount of the token that the Safe avatar spent in USD, this is converted at the exchange rate of the token
    */
-  spentAmountUsd: number;
+  amountUsd: number;
   /**
-   * The token that the Safe avatar spent
+   * The token that the Safe avatar spent or received
    */
-  spentToken: SpentTokenFieldType;
+  amountToken: SpentTokenFieldType;
 };
 
-export type SpendTransactionFieldsTypeUnpopulated = SpendTransactionFieldsType<Address>;
-export type SpendTransactionFieldsTypePopulated = SpendTransactionFieldsType<TokenDocumentFieldsType>;
+export type GnosisPayTransactionFieldsType_Unpopulated = GnosisPayTransactionFieldsType<Address>;
+export type GnosisPayTransactionFieldsType_Populated = GnosisPayTransactionFieldsType<TokenDocumentFieldsType>;
