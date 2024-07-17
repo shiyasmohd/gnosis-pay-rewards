@@ -149,9 +149,9 @@ export async function startIndexing({
         });
 
         // Emit the new spend transaction and current week data
-        if (data !== null && data.spendTransaction) {
-          socketIoServer.emit('newSpendTransaction', data.spendTransaction);
-          socketIoServer.emit('currentWeekDataUpdated', data.weekCashbackReward as any);
+        if (data !== null && data.gnosisPayTransactionJsonData) {
+          socketIoServer.emit('newSpendTransaction', data.gnosisPayTransactionJsonData);
+          socketIoServer.emit('currentWeekDataUpdated', data.weekCashbackRewardJsonData as any);
         }
 
         // Ignore already processed logs
@@ -169,6 +169,8 @@ export async function startIndexing({
         }
       } catch (e) {
         const error = e as Error;
+
+        console.error(error);
 
         logger.logError({
           message: `Error processing spend log (${spendLog.transactionHash}) at #${spendLog.blockNumber} with error: ${error.message}`,

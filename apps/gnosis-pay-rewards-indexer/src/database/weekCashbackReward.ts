@@ -146,8 +146,8 @@ export async function getOrCreateWeekCashbackRewardDocument<Populated extends bo
       transactions: [],
     }).save();
 
-    return newDoc;
+    return newDoc as any;
   }
 
-  return weekCashbackRewardDocument;
+  return weekCashbackRewardDocument as any;
 }

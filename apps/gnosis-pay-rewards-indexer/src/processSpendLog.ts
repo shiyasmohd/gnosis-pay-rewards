@@ -248,6 +248,7 @@ async function saveToDatabase(
 
   // Start a session to ensure atomicity
   const mongooseSession = await gnosisPayTransactionModel.startSession();
+  mongooseSession.startTransaction();
 
   const gnosisPayTransactionDocument = await new gnosisPayTransactionModel<GnosisPayTransactionFieldsType_Unpopulated>(
     gnosispayTransactionPayload
