@@ -18,7 +18,7 @@ export interface GnosisPayRewardsServerToClientEventsType {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type GnosisPayRewardsClientToServerEventsType = {
-  getRecentSpendTransactions: (limit: number) => void;
+  getRecentTransactions: (limit: number) => void;
   getCurrentWeekData: () => void;
   getWeekDataByTimestamp: (weekTimestamp: number) => void;
   getAllWeekData: () => void;
