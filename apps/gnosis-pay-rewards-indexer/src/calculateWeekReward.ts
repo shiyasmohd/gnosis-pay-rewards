@@ -1,4 +1,4 @@
-import { SpendTransactionFieldsTypeUnpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { GnosisPayTransactionFieldsType_Unpopulated, calculateNetUsdVolume } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { WeekCashbackRewardDocumentFieldsType_Populated } from './database/weekCashbackReward.js';
 
 /**
@@ -40,7 +40,7 @@ export function calculateWeekRewardWithTransactions({
   isOgNftHolder,
   transactions,
 }: {
-  transactions: SpendTransactionFieldsTypeUnpopulated[];
+  transactions: GnosisPayTransactionFieldsType_Unpopulated[];
   gnoUsdPrice: number;
   isOgNftHolder: boolean;
 }) {
@@ -48,7 +48,7 @@ export function calculateWeekRewardWithTransactions({
     return 0;
   }
 
-  const netUsdVolume = transactions.reduce((acc, transaction) => acc + transaction.spentAmountUsd, 0);
+  const netUsdVolume = calculateNetUsdVolume(transactions);
   // To get the week's GNO balance, we find the lowest GNO balance among the transactions
   const gnoBalance = Math.min(...transactions.map((transaction) => transaction.gnoBalance));
 

@@ -1,19 +1,19 @@
+import { gnosisPayStartBlock, bigMath, gnosisPayTokens } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { PublicClient, Transport } from 'viem';
-import { gnosisPayStartBlock, bigMath, gnosisPayTokens, toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { gnosis } from 'viem/chains';
 
-import { getGnosisPaySpendLogs } from './getGnosisPaySpendLogs.js';
+import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
 import { getTokenModel, migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
 import { clampToBlockRange } from './utils.js';
 import { buildSocketIoServer, buildExpressApp } from './server.js';
 import { SOCKET_IO_SERVER_PORT, MONGODB_URI, HTTP_SERVER_HOST, HTTP_SERVER_PORT } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
 import { createConnection } from './database/createConnection.js';
-import { getSpendTransactionModel } from './database/spendTransaction.js';
+import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js';
 import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
 import { processSpendLog } from './processSpendLog.js';
-import { getGnosisPayRefundLogs } from './getGnosisPayRefundLogs.js';
+import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
 import { createMongooseLogger, getLoggerModel } from './database/logger.js';
 import { getWeekDataModel } from './database/weekData.js';
@@ -39,7 +39,7 @@ export async function startIndexing({
   console.log('Migrating Gnosis Pay tokens to database');
   await migrateGnosisPayTokensToDatabase(getTokenModel(mongooseConnection));
 
-  const spendTransactionModel = getSpendTransactionModel(mongooseConnection);
+  const gnosisPayTransactionModel = getGnosisPayTransactionModel(mongooseConnection);
   const weekCashbackRewardModel = getWeekCashbackRewardModel(mongooseConnection);
   const weekDataModel = getWeekDataModel(mongooseConnection);
   const loggerModel = getLoggerModel(mongooseConnection);
@@ -49,16 +49,15 @@ export async function startIndexing({
 
   const restApiServer = addHttpRoutes({
     expressApp: buildExpressApp(),
-    spendTransactionModel,
+    gnosisPayTransactionModel,
     weekCashbackRewardModel,
     logger,
   });
 
   const socketIoServer = addSocketComms({
     socketIoServer: buildSocketIoServer(restApiServer),
-    spendTransactionModel,
+    gnosisPayTransactionModel,
     weekDataModel,
-    logger,
   });
 
   restApiServer.listen(HTTP_SERVER_PORT, HTTP_SERVER_HOST);
@@ -73,9 +72,9 @@ export async function startIndexing({
   let fromBlockNumber = gnosisPayStartBlock;
 
   if (resumeIndexing === true) {
-    const [latestSpendTransaction] = await spendTransactionModel.find().sort({ blockNumber: -1 }).limit(1);
-    if (latestSpendTransaction !== undefined) {
-      fromBlockNumber = BigInt(latestSpendTransaction.blockNumber) - indexBlockSize;
+    const [latestGnosisPayTransaction] = await gnosisPayTransactionModel.find().sort({ blockNumber: -1 }).limit(1);
+    if (latestGnosisPayTransaction !== undefined) {
+      fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - indexBlockSize;
       console.log(`Resuming indexing from #${fromBlockNumber}`);
     } else {
       console.warn(`No pending rewards found, starting from the beginning at #${gnosisPayStartBlock}`);
@@ -85,7 +84,7 @@ export async function startIndexing({
 
     await session.withTransaction(async () => {
       // Clean up the database
-      await spendTransactionModel.deleteMany();
+      await gnosisPayTransactionModel.deleteMany();
       await weekCashbackRewardModel.deleteMany();
       await weekDataModel.deleteMany();
       await loggerModel.deleteMany();
@@ -145,7 +144,7 @@ export async function startIndexing({
         const { data, error } = await processSpendLog({
           client,
           log: spendLog,
-          spendTransactionModel,
+          gnosisPayTransactionModel,
           weekCashbackRewardModel,
         });
 

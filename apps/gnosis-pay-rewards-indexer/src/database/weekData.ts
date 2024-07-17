@@ -2,7 +2,7 @@ import { WeekSnapshotDocumentFieldsType, toWeekDataId } from '@karpatkey/gnosis-
 
 import { Model, Mongoose, Schema } from 'mongoose';
 import { dayjs } from '../lib/dayjs.js';
-import { modelName as pendingRewardModelName } from './spendTransaction.js';
+import { modelName as gnosisPayTransactionModelName } from './gnosisPayTransaction.js';
 
 export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
   {
@@ -10,11 +10,11 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
     totalUsdVolume: { type: Number, required: true, default: 0 },
     transactions: {
       type: [Schema.Types.String],
-      ref: pendingRewardModelName,
+      ref: gnosisPayTransactionModelName,
       default: [],
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 ).index({ date: 1 }, { unique: true });
 
 export const modelName = 'WeekData' as const;

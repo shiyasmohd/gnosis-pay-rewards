@@ -1,4 +1,4 @@
-import { gnosisPaySpendAddress, gnosisPaySpenderModuleAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { gnosisPaySpendAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
 

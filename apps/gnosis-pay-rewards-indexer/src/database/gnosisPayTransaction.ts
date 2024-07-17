@@ -1,8 +1,12 @@
-import { SpendTransactionFieldsTypeUnpopulated, isValidWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  GnosisPayTransactionFieldsType_Unpopulated,
+  isValidWeekDataId,
+  GnosisPayTransactionType,
+} from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model, Mongoose, Schema } from 'mongoose';
 import { Address, isAddress, isHash } from 'viem';
 
-export const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpopulated>(
+export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsType_Unpopulated>(
   {
     _id: {
       type: String,
@@ -11,6 +15,11 @@ export const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpop
         validator: (value: string) => isHash(value),
         message: '{VALUE} is not a valid hash',
       },
+    },
+    type: {
+      type: String,
+      enum: Object.values(GnosisPayTransactionType),
+      required: true,
     },
     blockNumber: {
       type: Number,
@@ -32,16 +41,21 @@ export const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpop
       type: String,
       required: true,
     },
-    spentAmountRaw: {
+    amountRaw: {
       type: String,
       required: true,
     },
-    spentAmount: {
+    amount: {
       type: Number,
       required: true,
     },
-    spentAmountUsd: {
+    amountUsd: {
       type: Number,
+      required: true,
+    },
+    amountToken: {
+      type: String,
+      ref: 'Token',
       required: true,
     },
     gnoBalanceRaw: {
@@ -52,11 +66,7 @@ export const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpop
       type: Number,
       required: true,
     },
-    spentToken: {
-      type: String,
-      ref: 'Token',
-      required: true,
-    },
+
     safeAddress: {
       type: String,
       required: true,
@@ -71,13 +81,15 @@ export const spendTransactionSchema = new Schema<SpendTransactionFieldsTypeUnpop
   }
 );
 
-export const modelName = 'SpendTransaction' as const;
+export const modelName = 'GnosisPayTransaction' as const;
 
-export function getSpendTransactionModel(mongooseConnection: Mongoose) {
+type GetTransactionModel = Model<GnosisPayTransactionFieldsType_Unpopulated>;
+
+export function getGnosisPayTransactionModel(mongooseConnection: Mongoose): GetTransactionModel {
   // Return cached model if it exists
   if (mongooseConnection.models[modelName]) {
-    return mongooseConnection.models[modelName] as Model<SpendTransactionFieldsTypeUnpopulated>;
+    return mongooseConnection.models[modelName] as GetTransactionModel;
   }
 
-  return mongooseConnection.model(modelName, spendTransactionSchema);
+  return mongooseConnection.model(modelName, gnosisPayTransactionSchema) as GetTransactionModel;
 }

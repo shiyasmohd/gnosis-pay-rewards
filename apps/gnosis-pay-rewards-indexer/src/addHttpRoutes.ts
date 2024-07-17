@@ -1,20 +1,32 @@
+import {
+  GnosisPayTransactionFieldsType_Unpopulated,
+  GnosisPayTransactionFieldsType_Populated,
+  toWeekDataId,
+} from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Response } from 'express';
 import { isAddress } from 'viem';
 import { buildExpressApp } from './server.js';
-import { getSpendTransactionModel } from './database/spendTransaction.js';
-import { getOrCreateWeekCashbackRewardDocument, getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
-import { dayjs } from './lib/dayjs.js';
-import { toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { createMongooseLogger } from './database/logger.js';
+import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js';
+import { getWeekCashbackRewardModel, toDocumentId } from './database/weekCashbackReward.js';
 
 export function addHttpRoutes({
   expressApp,
-  spendTransactionModel,
+  gnosisPayTransactionModel,
   weekCashbackRewardModel,
 }: {
   expressApp: ReturnType<typeof buildExpressApp>;
-  spendTransactionModel: ReturnType<typeof getSpendTransactionModel>;
+  gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
   weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+  logger: ReturnType<typeof createMongooseLogger>;
 }) {
+  expressApp.get<'/status'>('/status', (_, res) => {
+    return res.send({
+      status: 'ok',
+      statusCode: 200,
+    });
+  });
+
   expressApp.get<'/health'>('/health', (_, res) => {
     return res.send({
       status: 'ok',
@@ -24,9 +36,9 @@ export function addHttpRoutes({
 
   expressApp.get<'/pending-rewards'>('/pending-rewards', async (_, res) => {
     try {
-      const spendTransactions = await spendTransactionModel.find({});
+      const spendTransactions = await gnosisPayTransactionModel.find({}).lean();
       return res.json({
-        data: spendTransactions.map((spendTransaction) => spendTransaction.toJSON()),
+        data: spendTransactions,
         status: 'ok',
         statusCode: 200,
       });
@@ -47,16 +59,45 @@ export function addHttpRoutes({
         });
       }
 
-      const currentWeekCashbacks = await getOrCreateWeekCashbackRewardDocument({
-        address: safeAddress,
-        week: toWeekDataId(dayjs().unix()),
-        weekCashbackRewardModel,
-      });
+      const allCashbacks = await weekCashbackRewardModel
+        .find({
+          address: new RegExp(safeAddress, 'i'),
+        })
+        .populate<{
+          transactions: GnosisPayTransactionFieldsType_Populated;
+        }>({
+          path: 'transactions',
+          select: {
+            _id: 0,
+            blockNumber: 1,
+            blockTimestamp: 1,
+            transactionHash: 1,
+            spentAmount: 1,
+            spentAmountUsd: 1,
+            gnoBalance: 1,
+          },
+          populate: {
+            path: 'amountToken',
+            select: {
+              symbol: 1,
+              decimals: 1,
+              name: 1,
+            },
+            transform: (doc, id) => ({
+              ...doc,
+              address: id,
+            }),
+          },
+        })
+        .lean();
 
       return res.json({
-        data: currentWeekCashbacks.toJSON(),
+        data: allCashbacks,
         status: 'ok',
         statusCode: 200,
+        _query: {
+          address: safeAddress,
+        },
       });
     } catch (error) {
       return returnInternalServerError(res, error as Error);
@@ -66,6 +107,7 @@ export function addHttpRoutes({
   expressApp.get<'/cashbacks/:safeAddress/:week'>('/cashbacks/:safeAddress/:week', async (req, res) => {
     try {
       const safeAddress = req.params.safeAddress;
+      const week = req.params.week as ReturnType<typeof toWeekDataId>;
 
       if (!isAddress(safeAddress)) {
         return res.status(4000).json({
@@ -75,24 +117,34 @@ export function addHttpRoutes({
         });
       }
 
-      const week = req.params.week;
+      const documentId = toDocumentId(week, safeAddress);
 
-      const cashbacks = await weekCashbackRewardModel.findOne({
-        address: new RegExp(safeAddress, 'i'),
-        week,
-      });
+      const weekCashbackRewardSnapshot = await weekCashbackRewardModel
+        .findById(documentId)
+        .populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions')
+        .lean();
 
-      if (cashbacks === null) {
+      if (weekCashbackRewardSnapshot === null) {
         return res.status(404).json({
-          error: 'No cashbacks found for this address and week',
+          error: 'No cashbacks found for this address  and week',
+          _query: {
+            id: documentId,
+            address: safeAddress,
+            week,
+          },
           status: 'error',
           statusCode: 404,
         });
       }
 
       return res.json({
-        data: cashbacks.toJSON(),
+        data: weekCashbackRewardSnapshot,
         status: 'ok',
+        _query: {
+          id: documentId,
+          address: safeAddress,
+          week,
+        },
         statusCode: 200,
       });
     } catch (error) {
@@ -112,15 +164,16 @@ export function addHttpRoutes({
         });
       }
 
-      const transactions = await spendTransactionModel
+      const transactions = await gnosisPayTransactionModel
         .find({
           safeAddress: new RegExp(safeAddress, 'i'),
         })
-        .populate('spentToken')
-        .sort({ blockTimestamp: -1 });
+        .populate('amountToken')
+        .sort({ blockTimestamp: -1 })
+        .lean();
 
       return res.json({
-        data: transactions.map((transaction) => transaction.toJSON()),
+        data: transactions,
         status: 'ok',
         statusCode: 200,
       });
