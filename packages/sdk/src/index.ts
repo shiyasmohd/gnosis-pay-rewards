@@ -7,5 +7,6 @@ export * from './database/gnosisPayToken';
 export * from './database/spendTransaction';
 export * from './database/utils';
 export * from './database/weekData';
+export * from './database/weekReward';
 export * from './socket';
 export * from './oracle';

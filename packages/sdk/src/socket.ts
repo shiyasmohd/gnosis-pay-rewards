@@ -10,18 +10,18 @@ export interface GnosisPayRewardsServerToClientEventsType {
   recentSpendTransactions: (data: GnosisPayTransactionFieldsType_Populated[]) => void;
   newRefundTransaction: (data: GnosisPayTransactionFieldsType_Populated) => void;
   recentRefundTransactions: (data: GnosisPayTransactionFieldsType_Populated[]) => void;
-  currentWeekData: (data: WeekSnapshotDocumentFieldsType) => void;
-  currentWeekDataUpdated: (data: WeekSnapshotDocumentFieldsType) => void;
-  weekDataByTimestamp: (data: WeekSnapshotDocumentFieldsType | null) => void;
-  allWeekData: (data: WeekSnapshotDocumentFieldsType[]) => void;
+  currentWeekMetricsSnapshot: (data: WeekSnapshotDocumentFieldsType) => void;
+  currentWeekMetricsSnapshotUpdated: (data: WeekSnapshotDocumentFieldsType) => void;
+  weekMetricsSnapshotByTimestamp: (data: WeekSnapshotDocumentFieldsType | null) => void;
+  allWeekMetricsSnapshots: (data: WeekSnapshotDocumentFieldsType[]) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type GnosisPayRewardsClientToServerEventsType = {
   getRecentTransactions: (limit: number) => void;
-  getCurrentWeekData: () => void;
-  getWeekDataByTimestamp: (weekTimestamp: number) => void;
-  getAllWeekData: () => void;
+  getCurrentWeekMetricsSnapshot: () => void;
+  getWeekMetricsSnapshotByTimestamp: (weekTimestamp: number) => void;
+  getAllWeekMetricsSnapshots: () => void;
 };
 
 export interface GnosisPayRewardsInterServerEventsType {
