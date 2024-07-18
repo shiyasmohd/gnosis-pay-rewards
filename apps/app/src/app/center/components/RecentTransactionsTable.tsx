@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
-  SpendTransactionFieldsTypePopulated,
+  GnosisPayTransactionFieldsType_Populated,
   getExplorerLink,
   shortenAddress,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 
 dayjs.extend(dayjsUtcPlugin);
 
-const tableColumns: ColumnDef<SpendTransactionFieldsTypePopulated>[] = [
+const tableColumns: ColumnDef<GnosisPayTransactionFieldsType_Populated>[] = [
   {
     accessorKey: 'blockTimestamp',
     header: 'Date',
@@ -64,11 +64,11 @@ const tableColumns: ColumnDef<SpendTransactionFieldsTypePopulated>[] = [
     },
   },
   {
-    accessorKey: 'spentAmount',
+    accessorKey: 'amount',
     header: 'Value',
     cell({ row }) {
-      const formattedTransactionValue = `${row.original?.spentToken?.symbol} ${row.original?.spentAmount?.toString()}`;
-      const formattedTransactionValueUsd = `$${numeral(row.original?.spentAmountUsd).format('0,0.00')}`;
+      const formattedTransactionValue = `${row.original?.amountToken?.symbol} ${row.original?.amount?.toString()}`;
+      const formattedTransactionValueUsd = `$${numeral(row.original?.amountUsd).format('0,0.00')}`;
 
       return `${formattedTransactionValue} (${formattedTransactionValueUsd})`;
     },
@@ -80,7 +80,7 @@ const tableColumns: ColumnDef<SpendTransactionFieldsTypePopulated>[] = [
 ];
 
 interface RecentSpendTransactionsTableProps {
-  data: SpendTransactionFieldsTypePopulated[];
+  data: GnosisPayTransactionFieldsType_Populated[];
   hideSafeAddressColumn?: boolean;
   showFilterInput?: boolean;
 }

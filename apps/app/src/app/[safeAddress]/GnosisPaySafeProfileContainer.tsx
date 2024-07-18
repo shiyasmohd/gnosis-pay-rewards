@@ -1,7 +1,7 @@
 'use client';
 import { SpendTransactionFieldsTypePopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { useQuery } from '@tanstack/react-query';
-import { RecentSpendTransactionsTable } from 'app/center/components/RecentSpendTransactionsTable';
+import { RecentSpendTransactionsTable } from 'app/center/components/RecentTransactionsTable';
 import axios from 'axios';
 import { NEXT_PUBLIC_INDEXER_HTTP_API_URL } from 'constants/env';
 import { Container } from 'ui/components/Container';
