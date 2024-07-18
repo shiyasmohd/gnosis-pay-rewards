@@ -8,7 +8,6 @@ import {
   GnosisPayTransactionType,
   calculateNetUsdVolume,
   WeekSnapshotDocumentFieldsType,
-  WeekCashbackRewardDocumentFieldsType_Unpopulated,
   WeekCashbackRewardDocumentFieldsType_Populated,
   ConditionalReturnType,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
@@ -22,7 +21,7 @@ import { getGnosisPaySafeAddressFromModule } from './gp/getGnosisPaySafeAddressF
 import { getGnoTokenBalance } from './getGnoTokenBalance.js';
 import { calculateWeekRewardWithTransactions } from './calculateWeekReward.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
-import { getOrCreateWeekMetricsSnapshotDocument } from 'database/weekMetricsSnapshot.js';
+import { getOrCreateWeekMetricsSnapshotDocument } from './database/weekMetricsSnapshot.js';
 
 type MongooseConfiguredModels = {
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;

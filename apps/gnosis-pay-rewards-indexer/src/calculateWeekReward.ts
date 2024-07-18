@@ -1,5 +1,4 @@
-import { GnosisPayTransactionFieldsType_Unpopulated, calculateNetUsdVolume } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { WeekCashbackRewardDocumentFieldsType_Populated } from './database/weekCashbackReward.js';
+import { GnosisPayTransactionFieldsType_Unpopulated, WeekCashbackRewardDocumentFieldsType_Populated, calculateNetUsdVolume } from '@karpatkey/gnosis-pay-rewards-sdk';
 
 /**
  * Calculate the rewards for a given week
