@@ -7,6 +7,10 @@ import {
   GnosisPayTransactionFieldsType_Unpopulated,
   GnosisPayTransactionType,
   calculateNetUsdVolume,
+  WeekSnapshotDocumentFieldsType,
+  WeekCashbackRewardDocumentFieldsType_Unpopulated,
+  WeekCashbackRewardDocumentFieldsType_Populated,
+  ConditionalReturnType,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model } from 'mongoose';
 import { PublicClient, Transport, formatUnits, Address } from 'viem';
@@ -18,12 +22,23 @@ import { getGnosisPaySafeAddressFromModule } from './gp/getGnosisPaySafeAddressF
 import { getGnoTokenBalance } from './getGnoTokenBalance.js';
 import { calculateWeekRewardWithTransactions } from './calculateWeekReward.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
+import { getOrCreateWeekMetricsSnapshotDocument } from 'database/weekMetricsSnapshot.js';
+
+type MongooseConfiguredModels = {
+  gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
+  weekCashbackRewardModel: WeekCashbackRewardModelType;
+  weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>;
+};
 
 type ProcessLogFnParams<LogType extends Record<string, unknown>> = {
   client: PublicClient<Transport, typeof gnosis>;
   log: LogType;
-  gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
-  weekCashbackRewardModel: WeekCashbackRewardModelType;
+} & MongooseConfiguredModels;
+
+type ProcessLogFnDataType = {
+  gnosisPayTransaction: GnosisPayTransactionFieldsType_Populated;
+  weekCashbackReward: WeekCashbackRewardDocumentFieldsType_Populated;
+  weekMetricsSnapshot: WeekSnapshotDocumentFieldsType;
 };
 
 export async function processSpendLog({
@@ -31,7 +46,10 @@ export async function processSpendLog({
   log,
   gnosisPayTransactionModel,
   weekCashbackRewardModel,
-}: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[number]>) {
+  weekMetricsSnapshotModel,
+}: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[number]>): Promise<
+  ConditionalReturnType<true, ProcessLogFnDataType, Error> | ConditionalReturnType<false, ProcessLogFnDataType, Error>
+> {
   try {
     await validateLogIsNotAlreadyProcessed(gnosisPayTransactionModel, log.transactionHash);
 
@@ -75,7 +93,7 @@ export async function processSpendLog({
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
     const gnoUsdPrice = gnoTokenPriceDataAtBlock.data?.price ?? 0;
 
-    const { gnosisPayTransactionJsonData, weekCashbackRewardJsonData } = await saveToDatabase(
+    const savedData = await saveToDatabase(
       {
         _id: transactionHash,
         amount,
@@ -96,14 +114,12 @@ export async function processSpendLog({
       {
         gnosisPayTransactionModel,
         weekCashbackRewardModel,
+        weekMetricsSnapshotModel,
       }
     );
 
     return {
-      data: {
-        gnosisPayTransactionJsonData,
-        weekCashbackRewardJsonData,
-      },
+      data: savedData,
       error: null,
     };
   } catch (e) {
@@ -119,6 +135,7 @@ export async function processRefundLog({
   log,
   gnosisPayTransactionModel,
   weekCashbackRewardModel,
+  weekMetricsSnapshotModel,
 }: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[number]>) {
   try {
     await validateLogIsNotAlreadyProcessed(gnosisPayTransactionModel, log.transactionHash);
@@ -159,7 +176,7 @@ export async function processRefundLog({
     const amountUsd = latestRoundDataAtBlock.data?.price ? amount * latestRoundDataAtBlock.data.price : 0;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
 
-    const { gnosisPayTransactionJsonData, weekCashbackRewardJsonData } = await saveToDatabase(
+    const savedData = await saveToDatabase(
       {
         _id: transactionHash,
         amount,
@@ -180,14 +197,12 @@ export async function processRefundLog({
       {
         gnosisPayTransactionModel,
         weekCashbackRewardModel,
+        weekMetricsSnapshotModel,
       }
     );
 
     return {
-      data: {
-        gnosisPayTransactionJsonData,
-        weekCashbackRewardJsonData,
-      },
+      data: savedData,
       error: null,
     };
   } catch (e) {
@@ -237,12 +252,9 @@ async function getBlockByNumber(params: Parameters<typeof getBlockByNumberCore>[
 
 async function saveToDatabase(
   gnosispayTransactionPayload: GnosisPayTransactionFieldsType_Unpopulated,
-  mongooseModels: {
-    gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
-    weekCashbackRewardModel: WeekCashbackRewardModelType;
-  }
-) {
-  const { gnosisPayTransactionModel, weekCashbackRewardModel } = mongooseModels;
+  mongooseModels: MongooseConfiguredModels
+): Promise<ProcessLogFnDataType> {
+  const { gnosisPayTransactionModel, weekCashbackRewardModel, weekMetricsSnapshotModel } = mongooseModels;
 
   gnosispayTransactionPayload.safeAddress = gnosispayTransactionPayload.safeAddress.toLowerCase() as Address;
   const { weekId, gnoUsdPrice, gnoBalance, safeAddress } = gnosispayTransactionPayload;
@@ -297,6 +309,18 @@ async function saveToDatabase(
   weekCashbackRewardOldSnapshot.estimatedReward = estimatedReward;
   const weekCashbackRewardNewSnapshot = await weekCashbackRewardOldSnapshot.save({ session: mongooseSession });
 
+  // Update the week metrics snapshot
+  const weekMetricsOldSnapshot = await getOrCreateWeekMetricsSnapshotDocument(
+    {
+      weekId,
+      weekMetricsSnapshotModel,
+    },
+    mongooseSession
+  );
+  // Add the spend transaction to the week metrics snapshot
+  weekMetricsOldSnapshot.transactions.push(gnosisPayTransactionDocument._id);
+  const weekMetricsNewSnapshot = await weekMetricsOldSnapshot.save({ session: mongooseSession });
+
   await mongooseSession.commitTransaction();
   await mongooseSession.endSession();
 
@@ -304,10 +328,10 @@ async function saveToDatabase(
   const gnosisPayTransactionJsonData: GnosisPayTransactionFieldsType_Populated = (
     await gnosisPayTransactionDocument.populate('amountToken')
   ).toJSON();
-  const weekCashbackRewardJsonData = weekCashbackRewardNewSnapshot.toJSON();
 
   return {
-    gnosisPayTransactionJsonData,
-    weekCashbackRewardJsonData,
+    gnosisPayTransaction: gnosisPayTransactionJsonData,
+    weekCashbackReward: weekCashbackRewardNewSnapshot.toJSON(),
+    weekMetricsSnapshot: weekMetricsNewSnapshot.toJSON(),
   };
 }

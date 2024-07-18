@@ -1,39 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Address, isAddress } from 'viem';
 import {  ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
-import { weekDataIdFormat, GnosisPayTransactionFieldsType_Unpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { weekDataIdFormat, GnosisPayTransactionFieldsType_Unpopulated, WeekCashbackRewardDocumentFieldsType_Unpopulated, WeekCashbackRewardDocumentFieldsType_Populated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { modelName as transactionModelName  } from './gnosisPayTransaction.js';
 import { dayjs } from '../lib/dayjs.js';
-
-export type WeekCashbackRewardDocumentFieldsTypeBase<TransactionsFieldType> = {
-  _id: `${typeof weekDataIdFormat}/${Address}`; // e.g. 2024-03-01/0x123456789abcdef123456789abcdef123456789ab
-  address: Address;
-  week: typeof weekDataIdFormat;
-  /**
-   * The estimated reward for the week
-   */
-  estimatedReward: number;
-  /**
-   * The highest GNO balance of the user at the end of the week
-   */
-  maxGnoBalance: number;
-  /**
-   * The lowest GNO balance of the user at the end of the week
-   */
-  minGnoBalance: number;
-  /**
-   * The net USD volume of the user at the end of the week, refunds will reduce this number
-   */
-  netUsdVolume: number;
-  /**
-   * The transactions that were used to calculate the cashback reward
-   */
-  transactions: TransactionsFieldType[];
-};
-
-export type WeekCashbackRewardDocumentFieldsType_Unpopulated = WeekCashbackRewardDocumentFieldsTypeBase<string>;
-export type WeekCashbackRewardDocumentFieldsType_Populated =
-  WeekCashbackRewardDocumentFieldsTypeBase<GnosisPayTransactionFieldsType_Unpopulated>;
 
 const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType_Unpopulated>(
   {

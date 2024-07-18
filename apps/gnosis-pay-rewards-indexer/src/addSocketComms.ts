@@ -1,16 +1,20 @@
+import { GnosisPayTransactionFieldsType_Populated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js';
 import { buildSocketIoServer } from './server.js';
-import { getCurrentWeekDataDocument, getWeekDataModel, getOrCreateWeekDataDocument } from './database/weekData.js';
-import { GnosisPayTransactionFieldsType_Populated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  getCurrentWeekMetricsSnapshotDocument,
+  getOrCreateWeekMetricsSnapshotDocument,
+  getWeekMetricsSnapshotModel,
+} from './database/weekMetricsSnapshot.js';
 
 export function addSocketComms({
   socketIoServer,
   gnosisPayTransactionModel,
-  weekDataModel,
+  weekMetricsSnapshotModel,
 }: {
   socketIoServer: ReturnType<typeof buildSocketIoServer>;
   gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
-  weekDataModel: ReturnType<typeof getWeekDataModel>;
+  weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
 }) {
   // Emit the 10 recent pending rewards to the UI when a client connects
   socketIoServer.on('connection', async (socketClient) => {
@@ -30,23 +34,23 @@ export function addSocketComms({
       socketClient.emit('recentTransactions', spendTransactions);
     });
 
-    socketClient.on('getCurrentWeekData', async () => {
-      const weekData = await getCurrentWeekDataDocument({ weekDataModel });
-      socketClient.emit('currentWeekData', weekData.toJSON());
+    socketClient.on('getCurrentWeekMetricsSnapshot', async () => {
+      const weekData = await getCurrentWeekMetricsSnapshotDocument(weekMetricsSnapshotModel);
+      socketClient.emit('currentWeekMetricsSnapshot', weekData.toJSON());
     });
 
-    socketClient.on('getWeekDataByTimestamp', async (weekTimestamp: number) => {
-      const weekData = await getOrCreateWeekDataDocument({
-        weekDataModel,
+    socketClient.on('getWeekMetricsSnapshotByTimestamp', async (weekTimestamp: number) => {
+      const weekData = await getOrCreateWeekMetricsSnapshotDocument({
+        weekMetricsSnapshotModel,
         unixTimestamp: weekTimestamp,
       });
-      socketClient.emit('weekDataByTimestamp', weekData.toJSON());
+      socketClient.emit('weekMetricsSnapshotByTimestamp', weekData.toJSON());
     });
 
-    socketClient.on('getAllWeekData', async () => {
-      const allWeekData = await weekDataModel.find().sort({ timestamp: 1 });
+    socketClient.on('getAllWeekMetricsSnapshots', async () => {
+      const allWeekData = await weekMetricsSnapshotModel.find().sort({ timestamp: 1 });
       socketClient.emit(
-        'allWeekData',
+        'allWeekMetricsSnapshots',
         allWeekData.map((w) => w.toJSON())
       );
     });

@@ -12,11 +12,11 @@ import { createConnection } from './database/createConnection.js';
 import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js';
 import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
-import { processSpendLog } from './processSpendLog.js';
+import { processRefundLog, processSpendLog } from './processSpendLog.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
 import { createMongooseLogger, getLoggerModel } from './database/logger.js';
-import { getWeekDataModel } from './database/weekData.js';
+import { getWeekMetricsSnapshotModel } from './database/weekMetricsSnapshot.js';
 import { getBlockModel, saveBlock } from './database/block.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
@@ -41,7 +41,7 @@ export async function startIndexing({
 
   const gnosisPayTransactionModel = getGnosisPayTransactionModel(mongooseConnection);
   const weekCashbackRewardModel = getWeekCashbackRewardModel(mongooseConnection);
-  const weekDataModel = getWeekDataModel(mongooseConnection);
+  const weekMetricsSnapshotModel = getWeekMetricsSnapshotModel(mongooseConnection);
   const loggerModel = getLoggerModel(mongooseConnection);
   const blockModel = getBlockModel(mongooseConnection);
 
@@ -57,7 +57,7 @@ export async function startIndexing({
   const socketIoServer = addSocketComms({
     socketIoServer: buildSocketIoServer(restApiServer),
     gnosisPayTransactionModel,
-    weekDataModel,
+    weekMetricsSnapshotModel,
   });
 
   restApiServer.listen(HTTP_SERVER_PORT, HTTP_SERVER_HOST);
@@ -84,9 +84,10 @@ export async function startIndexing({
 
     await session.withTransaction(async () => {
       // Clean up the database
+      await blockModel.deleteMany();
       await gnosisPayTransactionModel.deleteMany();
       await weekCashbackRewardModel.deleteMany();
-      await weekDataModel.deleteMany();
+      await weekMetricsSnapshotModel.deleteMany();
       await loggerModel.deleteMany();
     });
 
@@ -142,52 +143,17 @@ export async function startIndexing({
       tokenAddresses: gnosisPayTokens.map((token) => token.address),
     });
 
-    for (const spendLog of spendLogs) {
-      try {
-        const { data, error } = await processSpendLog({
-          client,
-          log: spendLog,
-          gnosisPayTransactionModel,
-          weekCashbackRewardModel,
-        });
-
-        // Emit the new spend transaction and current week data
-        if (data !== null && data.gnosisPayTransactionJsonData) {
-          socketIoServer.emit('newSpendTransaction', data.gnosisPayTransactionJsonData);
-          socketIoServer.emit('currentWeekDataUpdated', data.weekCashbackRewardJsonData as any);
-        }
-
-        // Ignore already processed logs
-        else if (error?.cause === 'LOG_ALREADY_PROCESSED') {
-          logger.logDebug({
-            message: `Spend log ${spendLog.transactionHash} already processed`,
-            metadata: {
-              spendLog,
-            },
-          });
-
-          // Log other errors
-        } else {
-          throw error;
-        }
-      } catch (e) {
-        const error = e as Error;
-
-        console.error(error);
-
-        logger.logError({
-          message: `Error processing spend log (${spendLog.transactionHash}) at #${spendLog.blockNumber} with error: ${error.message}`,
-          metadata: {
-            originalError: error.message,
-            spendLog,
-          },
-        });
-      }
-    }
-
-    for (const refundLog of refundLogs) {
-      console.log({ refundLog });
-    }
+    await handleBatchLogs({
+      client,
+      mongooseModels: {
+        gnosisPayTransactionModel,
+        weekCashbackRewardModel,
+        weekMetricsSnapshotModel,
+      },
+      logs: [...spendLogs, ...refundLogs],
+      logger,
+      socketIoServer,
+    });
 
     // Move to the next block range
     fromBlockNumber += indexBlockSize;
@@ -209,6 +175,81 @@ export async function startIndexing({
       await waitForBlock({
         client,
         blockNumber: targetBlockNumber,
+      });
+    }
+  }
+}
+
+async function handleBatchLogs({
+  client,
+  mongooseModels,
+  socketIoServer,
+  logger,
+  logs,
+}: {
+  logs: (
+    | Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[0]
+    | Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[0]
+  )[];
+  client: PublicClient<Transport, typeof gnosis>;
+  mongooseModels: {
+    gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
+    weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+    weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
+  };
+  logger: ReturnType<typeof createMongooseLogger>;
+  socketIoServer: ReturnType<typeof buildSocketIoServer>;
+}) {
+  const { gnosisPayTransactionModel, weekCashbackRewardModel, weekMetricsSnapshotModel } = mongooseModels;
+
+  for (const log of logs) {
+    try {
+      if (log.eventName === 'Spend') {
+        const { data, error } = await processSpendLog({
+          client,
+          log,
+          gnosisPayTransactionModel,
+          weekCashbackRewardModel,
+          weekMetricsSnapshotModel,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data !== null) {
+          socketIoServer.emit('newSpendTransaction', data.gnosisPayTransaction);
+          socketIoServer.emit('currentWeekMetricsSnapshotUpdated', data.weekMetricsSnapshot);
+        }
+      } else if (log.eventName === 'Transfer') {
+        const { data, error } = await processRefundLog({
+          client,
+          log,
+          gnosisPayTransactionModel,
+          weekCashbackRewardModel,
+          weekMetricsSnapshotModel,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data !== null) {
+          socketIoServer.emit('newRefundTransaction', data.gnosisPayTransaction);
+          socketIoServer.emit('currentWeekMetricsSnapshotUpdated', data.weekMetricsSnapshot);
+        }
+      }
+    } catch (e) {
+      const error = e as Error;
+
+      console.error(error);
+
+      logger.logError({
+        message: `Error processing ${log.eventName} log (${log.transactionHash}) at #${log.blockNumber} with error: ${error.message}`,
+        metadata: {
+          originalError: error.message,
+          log,
+        },
       });
     }
   }
