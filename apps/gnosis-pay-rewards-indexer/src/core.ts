@@ -219,6 +219,7 @@ async function handleBatchLogs({
 
         if (data !== null) {
           socketIoServer.emit('newSpendTransaction', data.gnosisPayTransaction);
+          socketIoServer.emit('newTransaction', data.gnosisPayTransaction);
           socketIoServer.emit('currentWeekMetricsSnapshotUpdated', data.weekMetricsSnapshot);
         }
       } else if (log.eventName === 'Transfer') {
@@ -236,6 +237,7 @@ async function handleBatchLogs({
 
         if (data !== null) {
           socketIoServer.emit('newRefundTransaction', data.gnosisPayTransaction);
+          socketIoServer.emit('newTransaction', data.gnosisPayTransaction);
           socketIoServer.emit('currentWeekMetricsSnapshotUpdated', data.weekMetricsSnapshot);
         }
       }
