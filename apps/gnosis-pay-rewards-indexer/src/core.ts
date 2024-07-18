@@ -89,6 +89,9 @@ export async function startIndexing({
       await weekDataModel.deleteMany();
       await loggerModel.deleteMany();
     });
+
+    await session.commitTransaction();
+    await session.endSession();
   }
 
   let toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);

@@ -35,7 +35,7 @@ export async function processSpendLog({
   try {
     await validateLogIsNotAlreadyProcessed(gnosisPayTransactionModel, log.transactionHash);
 
-    const { blockNumber } = log;
+    const { blockNumber, transactionHash } = log;
     const { account: rolesModuleAddress, amount: spendAmountRaw, asset: spentTokenAddress } = log.args;
     // Throw an error if the token is not registered as GP token
     const spentToken = validateToken(spentTokenAddress);
@@ -45,14 +45,14 @@ export async function processSpendLog({
       client,
     });
 
-    const gnosisPaySafeAddress = await getGnosisPaySafeAddressFromModule({
+    const safeAddress = await getGnosisPaySafeAddressFromModule({
       rolesModuleAddress,
       blockNumber,
       client,
     });
 
     const gnosisPaySafeGnoTokenBalance = await getGnoTokenBalance({
-      address: gnosisPaySafeAddress,
+      address: safeAddress,
       blockNumber,
       client,
     });
@@ -77,21 +77,21 @@ export async function processSpendLog({
 
     const { gnosisPayTransactionJsonData, weekCashbackRewardJsonData } = await saveToDatabase(
       {
+        _id: transactionHash,
         amount,
         amountRaw: spendAmountRaw.toString(),
-        amountUsd,
-        gnoBalance,
-        gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
-        safeAddress: gnosisPaySafeAddress,
-        type: GnosisPayTransactionType.Spend,
-        weekId,
-        _id: log.transactionHash,
         amountToken: spentTokenAddress,
+        amountUsd,
         blockNumber: Number(blockNumber),
         blockTimestamp: Number(block.timestamp),
-        transactionHash: log.transactionHash,
+        gnoBalance,
+        gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
         gnoUsdPrice,
         estiamtedGnoRewardAmount: 0,
+        safeAddress,
+        type: GnosisPayTransactionType.Spend,
+        transactionHash,
+        weekId,
       },
       {
         gnosisPayTransactionModel,
@@ -123,12 +123,12 @@ export async function processRefundLog({
   try {
     await validateLogIsNotAlreadyProcessed(gnosisPayTransactionModel, log.transactionHash);
 
-    const { blockNumber } = log;
-    const spentTokenAddress = log.address;
-    const { to: gnosisPaySafeAddress, value: amountRaw } = log.args;
+    const { blockNumber, transactionHash } = log;
+    const amountTokenAddress = log.address;
+    const { to: safeAddress, value: amountRaw } = log.args;
 
     // Throw an error if the token is not registered as GP token
-    const spentToken = validateToken(spentTokenAddress);
+    const spentToken = validateToken(amountTokenAddress);
 
     const block = await getBlockByNumber({
       blockNumber,
@@ -136,7 +136,7 @@ export async function processRefundLog({
     });
 
     const gnosisPaySafeGnoTokenBalance = await getGnoTokenBalance({
-      address: gnosisPaySafeAddress,
+      address: safeAddress,
       blockNumber,
       client,
     });
@@ -144,7 +144,7 @@ export async function processRefundLog({
     const latestRoundDataAtBlock = await getOraclePriceAtBlockNumber({
       blockNumber,
       client,
-      token: spentTokenAddress,
+      token: amountTokenAddress,
     });
 
     const gnoTokenPriceDataAtBlock = await getOraclePriceAtBlockNumber({
@@ -161,21 +161,21 @@ export async function processRefundLog({
 
     const { gnosisPayTransactionJsonData, weekCashbackRewardJsonData } = await saveToDatabase(
       {
+        _id: transactionHash,
         amount,
         amountRaw: amountRaw.toString(),
+        amountToken: amountTokenAddress,
         amountUsd,
-        gnoBalance,
-        gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
-        safeAddress: gnosisPaySafeAddress,
-        type: GnosisPayTransactionType.Spend,
-        weekId,
-        _id: log.transactionHash,
-        amountToken: spentTokenAddress,
         blockNumber: Number(blockNumber),
         blockTimestamp: Number(block.timestamp),
-        transactionHash: log.transactionHash,
+        gnoBalance,
+        gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
         gnoUsdPrice,
         estiamtedGnoRewardAmount: 0,
+        safeAddress,
+        type: GnosisPayTransactionType.Spend,
+        transactionHash,
+        weekId,
       },
       {
         gnosisPayTransactionModel,
@@ -244,7 +244,8 @@ async function saveToDatabase(
 ) {
   const { gnosisPayTransactionModel, weekCashbackRewardModel } = mongooseModels;
 
-  const { weekId, gnoUsdPrice, safeAddress, gnoBalance } = gnosispayTransactionPayload;
+  gnosispayTransactionPayload.safeAddress = gnosispayTransactionPayload.safeAddress.toLowerCase() as Address;
+  const { weekId, gnoUsdPrice, gnoBalance, safeAddress } = gnosispayTransactionPayload;
 
   // Start a session to ensure atomicity
   const mongooseSession = await gnosisPayTransactionModel.startSession();
@@ -253,11 +254,6 @@ async function saveToDatabase(
   const gnosisPayTransactionDocument = await new gnosisPayTransactionModel<GnosisPayTransactionFieldsType_Unpopulated>(
     gnosispayTransactionPayload
   ).save({ session: mongooseSession });
-
-  // Manually populate the spentToken and safeAddress fields
-  const gnosisPayTransactionJsonData: GnosisPayTransactionFieldsType_Populated = (
-    await gnosisPayTransactionDocument.populate('amountToken')
-  ).toJSON();
 
   // All spend transactions for the week
   const allGnosisPayTransactions = [
@@ -271,21 +267,24 @@ async function saveToDatabase(
   ];
 
   // Update the week cashback reward document
-  const weekCashbackRewardSnapshot = await getOrCreateWeekCashbackRewardDocument({
-    address: safeAddress,
-    weekCashbackRewardModel,
-    week: weekId,
-  });
+  const weekCashbackRewardOldSnapshot = await getOrCreateWeekCashbackRewardDocument(
+    {
+      address: safeAddress,
+      weekCashbackRewardModel,
+      week: weekId,
+    },
+    mongooseSession
+  );
 
-  weekCashbackRewardSnapshot.netUsdVolume = calculateNetUsdVolume(allGnosisPayTransactions);
+  weekCashbackRewardOldSnapshot.netUsdVolume = calculateNetUsdVolume(allGnosisPayTransactions);
   // Add the spend transaction to the week cashback reward document
-  weekCashbackRewardSnapshot.transactions.push(gnosisPayTransactionDocument._id);
+  weekCashbackRewardOldSnapshot.transactions.push(gnosisPayTransactionDocument._id);
 
-  if (gnoBalance > weekCashbackRewardSnapshot.maxGnoBalance) {
-    weekCashbackRewardSnapshot.maxGnoBalance = gnoBalance;
+  if (gnoBalance > weekCashbackRewardOldSnapshot.maxGnoBalance) {
+    weekCashbackRewardOldSnapshot.maxGnoBalance = gnoBalance;
   }
-  if (gnoBalance < weekCashbackRewardSnapshot.minGnoBalance) {
-    weekCashbackRewardSnapshot.minGnoBalance = gnoBalance;
+  if (gnoBalance < weekCashbackRewardOldSnapshot.minGnoBalance) {
+    weekCashbackRewardOldSnapshot.minGnoBalance = gnoBalance;
   }
 
   const estimatedReward = calculateWeekRewardWithTransactions({
@@ -295,12 +294,17 @@ async function saveToDatabase(
   });
 
   // Calculate the estimated reward for the week
-  weekCashbackRewardSnapshot.estimatedReward = estimatedReward;
-
-  const weekCashbackRewardJsonData = (await weekCashbackRewardSnapshot.save({ session: mongooseSession })).toJSON();
+  weekCashbackRewardOldSnapshot.estimatedReward = estimatedReward;
+  const weekCashbackRewardNewSnapshot = await weekCashbackRewardOldSnapshot.save({ session: mongooseSession });
 
   await mongooseSession.commitTransaction();
   await mongooseSession.endSession();
+
+  // Manually populate the spentToken and safeAddress fields
+  const gnosisPayTransactionJsonData: GnosisPayTransactionFieldsType_Populated = (
+    await gnosisPayTransactionDocument.populate('amountToken')
+  ).toJSON();
+  const weekCashbackRewardJsonData = weekCashbackRewardNewSnapshot.toJSON();
 
   return {
     gnosisPayTransactionJsonData,

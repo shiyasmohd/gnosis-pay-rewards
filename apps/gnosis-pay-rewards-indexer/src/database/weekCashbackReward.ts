@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Address, isAddress } from 'viem';
-import {  HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
+import {  ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
 import { weekDataIdFormat, GnosisPayTransactionFieldsType_Unpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { modelName as transactionModelName  } from './gnosisPayTransaction.js';
 import { dayjs } from '../lib/dayjs.js';
@@ -123,11 +123,11 @@ export async function getOrCreateWeekCashbackRewardDocument<Populated extends bo
   address: Address;
   week: typeof weekDataIdFormat;
   weekCashbackRewardModel: Model<WeekCashbackRewardDocumentFieldsType_Unpopulated>;
-}): Promise<Populated extends true ? HydratedDocument<WeekCashbackRewardDocumentFieldsType_Populated> : HydratedDocument<WeekCashbackRewardDocumentFieldsType_Unpopulated>> {
+}, session?: ClientSession): Promise<Populated extends true ? HydratedDocument<WeekCashbackRewardDocumentFieldsType_Populated> : HydratedDocument<WeekCashbackRewardDocumentFieldsType_Unpopulated>> {
   address = address.toLowerCase() as Address;
   const documentId = toDocumentId(week, address);
 
-  const query = weekCashbackRewardModel.findById(documentId);
+  const query = weekCashbackRewardModel.findById(documentId, {}, { session });
 
   if (populateTransactions) {
     query.populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions');
@@ -144,7 +144,7 @@ export async function getOrCreateWeekCashbackRewardDocument<Populated extends bo
       amount: 0,
       netUsdVolume: 0,
       transactions: [],
-    }).save();
+    }).save({ session });
 
     return newDoc as any;
   }
