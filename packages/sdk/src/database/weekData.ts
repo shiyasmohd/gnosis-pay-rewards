@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
-import dayjsUtils from 'dayjs/plugin/utc';
+import dayjsUtcPlugin from 'dayjs/plugin/utc.js';
 
-dayjs.extend(dayjsUtils);
+dayjs.extend(dayjsUtcPlugin);
 
 export type WeekSnapshotDocumentFieldsType = {
   /**
