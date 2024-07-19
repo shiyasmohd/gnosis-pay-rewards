@@ -7,10 +7,12 @@ import { io, Socket } from 'socket.io-client';
 
 export let url = 'http://localhost:3003';
 
-if (process.env.NEXT_PUBLIC_INDEXER_SOCKET_URL) {
-  url = process.env.NEXT_PUBLIC_INDEXER_SOCKET_URL;
+if (process.env.NEXT_PUBLIC_INDEXER_SOCKET_API_URL) {
+  url = process.env.NEXT_PUBLIC_INDEXER_SOCKET_API_URL;
 } else {
-  console.warn('NEXT_PUBLIC_INDEXER_SOCKET_URL is not set. Using default URL: ws://localhost:4000');
+  console.warn(
+    `NEXT_PUBLIC_INDEXER_SOCKET_API_URL is not set. Using default URL: ${url}. Make sure to set it in your environment variables.`,
+  );
 }
 
 /**
