@@ -1,7 +1,7 @@
 import { Address, PublicClient, Transport, erc721Abi } from 'viem';
 import { gnosis } from 'viem/chains';
 
-import { getGnosisPaySafeOwners } from './getGnosisPaySafeOwners';
+import { getGnosisPaySafeOwners } from './getGnosisPaySafeOwners.js';
 
 const OG_NFT_ADDRESS = '0x88997988a6A5aAF29BA973d298D276FE75fb69ab' as const;
 
@@ -18,10 +18,7 @@ export async function hasGnosisPayOgNft({
   });
 
   if (error) {
-    return {
-      data: null,
-      error,
-    };
+    throw error;
   }
 
   const mcResult = await client.multicall({
