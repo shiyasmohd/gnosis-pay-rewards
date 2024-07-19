@@ -24,5 +24,5 @@
     ]
   },
   "exclude": ["node_modules", "cypress"],
-  "include": ["src/**/*", "../../packages/sdk/src/utils/bigMath.ts"]
+  "include": ["src/**/*"]
 }
