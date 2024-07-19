@@ -1,9 +1,9 @@
 import dayjsCore from 'dayjs';
-import dayjsUtc from 'dayjs/plugin/utc';
-import updateLocale from 'dayjs/plugin/updateLocale';
+import dayjsUtcPlugin from 'dayjs/plugin/utc.js';
+import updateLocalePlugin from 'dayjs/plugin/updateLocale.js';
 
-dayjsCore.extend(dayjsUtc);
-dayjsCore.extend(updateLocale);
+dayjsCore.extend(dayjsUtcPlugin);
+dayjsCore.extend(updateLocalePlugin);
 // dayjsCore.locale('en', {
 //   weekStart: 1,
 // });
