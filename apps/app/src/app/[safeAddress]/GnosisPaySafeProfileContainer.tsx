@@ -1,5 +1,5 @@
 'use client';
-import { SpendTransactionFieldsTypePopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { GnosisPayTransactionFieldsType_Populated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { RecentSpendTransactionsTable } from 'app/center/components/RecentTransactionsTable';
 import axios from 'axios';
@@ -13,7 +13,7 @@ export function GnosisPaySafeProfileContainer({ safeAddress }: { safeAddress: st
     queryKey: ['transactions', safeAddress],
     queryFn() {
       return axios.get<{
-        data: SpendTransactionFieldsTypePopulated[];
+        data: GnosisPayTransactionFieldsType_Populated[];
         status: string;
         statusCode: number;
       }>(`${NEXT_PUBLIC_INDEXER_HTTP_API_URL}/transactions/${safeAddress}`);
