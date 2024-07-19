@@ -24,6 +24,7 @@ const DEFAULT_EXTERNAL = [
   '@rainbow-me/rainbowkit',
   'yup',
   'validator',
+  'dayjs',
 ];
 
 export const sharedLibConfig = {
