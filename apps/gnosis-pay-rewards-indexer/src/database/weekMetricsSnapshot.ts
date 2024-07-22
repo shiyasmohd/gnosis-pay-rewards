@@ -32,7 +32,7 @@ type GetOrCreateWeekMetricsSnapshotDocumentParams =
   | { unixTimestamp: number; weekId?: never; weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType> }
   | { unixTimestamp?: never; weekId: WeekIdType; weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType> };
 
-export async function getOrCreateWeekMetricsSnapshotDocument(
+export async function createWeekMetricsSnapshotDocument(
   { weekMetricsSnapshotModel, unixTimestamp, weekId }: GetOrCreateWeekMetricsSnapshotDocumentParams,
   mongooseSession?: ClientSession
 ) {
@@ -62,7 +62,7 @@ export async function getOrCreateWeekMetricsSnapshotDocument(
 export async function getCurrentWeekMetricsSnapshotDocument(
   weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>
 ) {
-  return getOrCreateWeekMetricsSnapshotDocument({
+  return createWeekMetricsSnapshotDocument({
     weekMetricsSnapshotModel,
     unixTimestamp: dayjs.utc().unix(),
   });

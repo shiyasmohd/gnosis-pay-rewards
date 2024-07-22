@@ -3,7 +3,7 @@ import { PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
 
 import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
-import { getTokenModel, migrateGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
+import { getTokenModel, saveGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
 import { clampToBlockRange } from './utils.js';
 import { buildSocketIoServer, buildExpressApp } from './server.js';
 import { SOCKET_IO_SERVER_PORT, MONGODB_URI, HTTP_SERVER_HOST, HTTP_SERVER_PORT } from './config/env.js';
@@ -37,14 +37,13 @@ export async function startIndexing({
   const mongooseConnection = await createConnection(MONGODB_URI);
 
   console.log('Migrating Gnosis Pay tokens to database');
-  await migrateGnosisPayTokensToDatabase(getTokenModel(mongooseConnection));
 
   const gnosisPayTransactionModel = getGnosisPayTransactionModel(mongooseConnection);
   const weekCashbackRewardModel = getWeekCashbackRewardModel(mongooseConnection);
   const weekMetricsSnapshotModel = getWeekMetricsSnapshotModel(mongooseConnection);
+  const gnosisPayTokenModel = getTokenModel(mongooseConnection);
   const loggerModel = getLoggerModel(mongooseConnection);
   const blockModel = getBlockModel(mongooseConnection);
-
   const logger = createMongooseLogger(loggerModel);
 
   const restApiServer = addHttpRoutes({
@@ -82,17 +81,21 @@ export async function startIndexing({
   } else {
     const session = await mongooseConnection.startSession();
 
+    // Clean up the database
     await session.withTransaction(async () => {
-      // Clean up the database
       await blockModel.deleteMany();
       await gnosisPayTransactionModel.deleteMany();
       await weekCashbackRewardModel.deleteMany();
       await weekMetricsSnapshotModel.deleteMany();
       await loggerModel.deleteMany();
+      await gnosisPayTokenModel.deleteMany();
     });
 
     await session.commitTransaction();
     await session.endSession();
+
+    // Save the Gnosis Pay tokens to the database
+    await saveGnosisPayTokensToDatabase(gnosisPayTokenModel);
   }
 
   let toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);

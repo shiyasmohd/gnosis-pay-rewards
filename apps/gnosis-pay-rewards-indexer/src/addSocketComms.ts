@@ -3,8 +3,8 @@ import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js
 import { buildSocketIoServer } from './server.js';
 import {
   getCurrentWeekMetricsSnapshotDocument,
-  getOrCreateWeekMetricsSnapshotDocument,
   getWeekMetricsSnapshotModel,
+  createWeekMetricsSnapshotDocument,
 } from './database/weekMetricsSnapshot.js';
 
 export function addSocketComms({
@@ -40,7 +40,7 @@ export function addSocketComms({
     });
 
     socketClient.on('getWeekMetricsSnapshotByTimestamp', async (weekTimestamp: number) => {
-      const weekData = await getOrCreateWeekMetricsSnapshotDocument({
+      const weekData = await createWeekMetricsSnapshotDocument({
         weekMetricsSnapshotModel,
         unixTimestamp: weekTimestamp,
       });
