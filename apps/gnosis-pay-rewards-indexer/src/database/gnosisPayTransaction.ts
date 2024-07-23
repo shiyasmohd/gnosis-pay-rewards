@@ -68,7 +68,7 @@ export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsT
       required: true,
     },
     safeAddress: {
-      ref: gnosisPaySafeAddressModelName,
+      ref: 'GnosisPaySafeAddress',
       type: String,
       required: true,
       validate: {

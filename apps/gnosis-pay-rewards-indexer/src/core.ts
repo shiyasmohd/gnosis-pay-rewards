@@ -18,7 +18,7 @@ import { getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
 import { createMongooseLogger, getLoggerModel } from './database/logger.js';
 import { getWeekMetricsSnapshotModel } from './database/weekMetricsSnapshot.js';
 import { getBlockModel, saveBlock } from './database/block.js';
-import { getGnosisPaySafeAddressModel } from 'database/gnosisPaySafeAddress.js';
+import { getGnosisPaySafeAddressModel } from './database/gnosisPaySafeAddress.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
 

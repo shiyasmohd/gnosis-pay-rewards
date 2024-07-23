@@ -26,7 +26,7 @@ import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
 import {
   GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
   createGnosisPaySafeAddressDocument,
-} from 'database/gnosisPaySafeAddress.js';
+} from './database/gnosisPaySafeAddress.js';
 
 type MongooseConfiguredModels = {
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
@@ -199,7 +199,7 @@ export async function processRefundLog({
         transactionHash,
         weekId,
       },
-        {
+      mongooseModels
     );
 
     return {

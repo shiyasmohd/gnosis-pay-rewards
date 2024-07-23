@@ -1,7 +1,6 @@
 import { GnosisPayTransactionFieldsType_Unpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
 import { Address, isAddress } from 'viem';
-import { modelName as gnosisPayTransactionModelName } from './gnosisPayTransaction.js';
 
 type GnosisPaySafeAddressDocumentFieldsType = {
   _id: Address;
@@ -56,7 +55,7 @@ const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFields
   },
   transactions: {
     type: [String],
-    ref: gnosisPayTransactionModelName,
+    ref: 'GnosisPayTransaction' as const,
     default: [],
   },
 });
