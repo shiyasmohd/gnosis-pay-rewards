@@ -5,6 +5,7 @@ import {
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model, Mongoose, Schema } from 'mongoose';
 import { Address, isAddress, isHash } from 'viem';
+import { modelName as gnosisPaySafeAddressModelName } from './gnosisPaySafeAddress.js';
 
 export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsType_Unpopulated>(
   {
@@ -66,8 +67,8 @@ export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsT
       type: Number,
       required: true,
     },
-
     safeAddress: {
+      ref: gnosisPaySafeAddressModelName,
       type: String,
       required: true,
       validate: {

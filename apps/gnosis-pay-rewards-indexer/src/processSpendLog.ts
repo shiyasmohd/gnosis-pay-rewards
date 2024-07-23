@@ -22,9 +22,15 @@ import { getGnosisPaySafeAddressFromModule } from './gp/getGnosisPaySafeAddressF
 import { getGnoTokenBalance } from './getGnoTokenBalance.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { createWeekMetricsSnapshotDocument } from './database/weekMetricsSnapshot.js';
+import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
+import {
+  GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
+  createGnosisPaySafeAddressDocument,
+} from 'database/gnosisPaySafeAddress.js';
 
 type MongooseConfiguredModels = {
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
+  gnosisPaySafeAddressModel: Model<GnosisPaySafeAddressDocumentFieldsType_Unpopulated>;
   weekCashbackRewardModel: WeekCashbackRewardModelType;
   weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>;
 };
@@ -32,7 +38,8 @@ type MongooseConfiguredModels = {
 type ProcessLogFnParams<LogType extends Record<string, unknown>> = {
   client: PublicClient<Transport, typeof gnosis>;
   log: LogType;
-} & MongooseConfiguredModels;
+  mongooseModels: MongooseConfiguredModels;
+};
 
 type ProcessLogFnDataType = {
   gnosisPayTransaction: GnosisPayTransactionFieldsType_Populated;
@@ -43,14 +50,12 @@ type ProcessLogFnDataType = {
 export async function processSpendLog({
   client,
   log,
-  gnosisPayTransactionModel,
-  weekCashbackRewardModel,
-  weekMetricsSnapshotModel,
+  mongooseModels,
 }: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[number]>): Promise<
   ConditionalReturnType<true, ProcessLogFnDataType, Error> | ConditionalReturnType<false, ProcessLogFnDataType, Error>
 > {
   try {
-    await validateLogIsNotAlreadyProcessed(gnosisPayTransactionModel, log.transactionHash);
+    await validateLogIsNotAlreadyProcessed(mongooseModels.gnosisPayTransactionModel, log.transactionHash);
 
     const { blockNumber, transactionHash } = log;
     const { account: rolesModuleAddress, amount: spendAmountRaw, asset: spentTokenAddress } = log.args;
@@ -110,11 +115,7 @@ export async function processSpendLog({
         transactionHash,
         weekId,
       },
-      {
-        gnosisPayTransactionModel,
-        weekCashbackRewardModel,
-        weekMetricsSnapshotModel,
-      }
+      mongooseModels
     );
 
     return {
@@ -132,12 +133,12 @@ export async function processSpendLog({
 export async function processRefundLog({
   client,
   log,
-  gnosisPayTransactionModel,
-  weekCashbackRewardModel,
-  weekMetricsSnapshotModel,
-}: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[number]>) {
+  mongooseModels,
+}: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[number]> & {
+  mongooseModels: MongooseConfiguredModels;
+}) {
   try {
-    await validateLogIsNotAlreadyProcessed(gnosisPayTransactionModel, log.transactionHash);
+    await validateLogIsNotAlreadyProcessed(mongooseModels.gnosisPayTransactionModel, log.transactionHash);
 
     const { blockNumber, transactionHash } = log;
     const amountTokenAddress = log.address;
@@ -149,6 +150,11 @@ export async function processRefundLog({
     const block = await getBlockByNumber({
       blockNumber,
       client,
+    });
+
+    const safeHasOgNft = await hasGnosisPayOgNft({
+      client,
+      gnosisPaySafeAddress: safeAddress,
     });
 
     const gnosisPaySafeGnoTokenBalance = await getGnoTokenBalance({
@@ -193,11 +199,7 @@ export async function processRefundLog({
         transactionHash,
         weekId,
       },
-      {
-        gnosisPayTransactionModel,
-        weekCashbackRewardModel,
-        weekMetricsSnapshotModel,
-      }
+        {
     );
 
     return {
@@ -253,7 +255,12 @@ async function saveToDatabase(
   gnosispayTransactionPayload: GnosisPayTransactionFieldsType_Unpopulated,
   mongooseModels: MongooseConfiguredModels
 ): Promise<ProcessLogFnDataType> {
-  const { gnosisPayTransactionModel, weekCashbackRewardModel, weekMetricsSnapshotModel } = mongooseModels;
+  const {
+    gnosisPayTransactionModel,
+    weekCashbackRewardModel,
+    weekMetricsSnapshotModel,
+    gnosisPaySafeAddressModel,
+  } = mongooseModels;
 
   gnosispayTransactionPayload.safeAddress = gnosispayTransactionPayload.safeAddress.toLowerCase() as Address;
   const { weekId, gnoUsdPrice, gnoBalance, safeAddress } = gnosispayTransactionPayload;
@@ -276,6 +283,8 @@ async function saveToDatabase(
       })
       .lean()),
   ];
+
+  createGnosisPaySafeAddressDocument(gnosisPaySafeAddressModel, safeAddress, mongooseSession);
 
   // Update the week cashback reward document
   const weekCashbackRewardOldSnapshot = await createWeekCashbackRewardDocument(

@@ -18,6 +18,7 @@ import { getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
 import { createMongooseLogger, getLoggerModel } from './database/logger.js';
 import { getWeekMetricsSnapshotModel } from './database/weekMetricsSnapshot.js';
 import { getBlockModel, saveBlock } from './database/block.js';
+import { getGnosisPaySafeAddressModel } from 'database/gnosisPaySafeAddress.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
 
@@ -38,6 +39,7 @@ export async function startIndexing({
 
   console.log('Migrating Gnosis Pay tokens to database');
 
+  const gnosisPaySafeAddressModel = getGnosisPaySafeAddressModel(mongooseConnection);
   const gnosisPayTransactionModel = getGnosisPayTransactionModel(mongooseConnection);
   const weekCashbackRewardModel = getWeekCashbackRewardModel(mongooseConnection);
   const weekMetricsSnapshotModel = getWeekMetricsSnapshotModel(mongooseConnection);
@@ -83,8 +85,9 @@ export async function startIndexing({
 
     // Clean up the database
     await session.withTransaction(async () => {
-      await blockModel.deleteMany();
+      await gnosisPaySafeAddressModel.deleteMany();
       await gnosisPayTransactionModel.deleteMany();
+      await blockModel.deleteMany();
       await weekCashbackRewardModel.deleteMany();
       await weekMetricsSnapshotModel.deleteMany();
       await loggerModel.deleteMany();
@@ -152,6 +155,7 @@ export async function startIndexing({
         gnosisPayTransactionModel,
         weekCashbackRewardModel,
         weekMetricsSnapshotModel,
+        gnosisPaySafeAddressModel,
       },
       logs: [...spendLogs, ...refundLogs],
       logger,
@@ -195,25 +199,17 @@ async function handleBatchLogs({
     | Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[0]
   )[];
   client: PublicClient<Transport, typeof gnosis>;
-  mongooseModels: {
-    gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
-    weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
-    weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
-  };
+  mongooseModels: Parameters<typeof processSpendLog>[0]['mongooseModels'];
   logger: ReturnType<typeof createMongooseLogger>;
   socketIoServer: ReturnType<typeof buildSocketIoServer>;
 }) {
-  const { gnosisPayTransactionModel, weekCashbackRewardModel, weekMetricsSnapshotModel } = mongooseModels;
-
   for (const log of logs) {
     try {
       if (log.eventName === 'Spend') {
         const { data, error } = await processSpendLog({
           client,
           log,
-          gnosisPayTransactionModel,
-          weekCashbackRewardModel,
-          weekMetricsSnapshotModel,
+          mongooseModels,
         });
 
         if (error) {
@@ -229,9 +225,7 @@ async function handleBatchLogs({
         const { data, error } = await processRefundLog({
           client,
           log,
-          gnosisPayTransactionModel,
-          weekCashbackRewardModel,
-          weekMetricsSnapshotModel,
+          mongooseModels,
         });
 
         if (error) {

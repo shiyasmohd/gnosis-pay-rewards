@@ -9,7 +9,7 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
     date: { type: String, required: true },
     netUsdVolume: { type: Number, required: true, default: 0 },
     transactions: {
-      type: [Schema.Types.String],
+      type: [String],
       ref: gnosisPayTransactionModelName,
       default: [],
     },
