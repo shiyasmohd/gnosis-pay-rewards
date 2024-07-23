@@ -10,18 +10,18 @@ import {
   WeekSnapshotDocumentFieldsType,
   WeekCashbackRewardDocumentFieldsType_Populated,
   ConditionalReturnType,
+  calculateWeekRewardAmount,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model } from 'mongoose';
 import { PublicClient, Transport, formatUnits, Address } from 'viem';
 import { gnosis } from 'viem/chains';
 import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
-import { WeekCashbackRewardModelType, getOrCreateWeekCashbackRewardDocument } from './database/weekCashbackReward.js';
+import { WeekCashbackRewardModelType, createWeekCashbackRewardDocument } from './database/weekCashbackReward.js';
 import { getBlockByNumber as getBlockByNumberCore } from './getBlockByNumber.js';
 import { getGnosisPaySafeAddressFromModule } from './gp/getGnosisPaySafeAddressFromModule.js';
 import { getGnoTokenBalance } from './getGnoTokenBalance.js';
-import { calculateWeekRewardWithTransactions } from './calculateWeekReward.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
-import { getOrCreateWeekMetricsSnapshotDocument } from './database/weekMetricsSnapshot.js';
+import { createWeekMetricsSnapshotDocument } from './database/weekMetricsSnapshot.js';
 
 type MongooseConfiguredModels = {
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
@@ -278,7 +278,7 @@ async function saveToDatabase(
   ];
 
   // Update the week cashback reward document
-  const weekCashbackRewardOldSnapshot = await getOrCreateWeekCashbackRewardDocument(
+  const weekCashbackRewardOldSnapshot = await createWeekCashbackRewardDocument(
     {
       address: safeAddress,
       weekCashbackRewardModel,
@@ -298,7 +298,7 @@ async function saveToDatabase(
     weekCashbackRewardOldSnapshot.minGnoBalance = gnoBalance;
   }
 
-  const estimatedReward = calculateWeekRewardWithTransactions({
+  const estimatedReward = calculateWeekRewardAmount({
     gnoUsdPrice,
     transactions: allGnosisPayTransactions,
     isOgNftHolder: false,
@@ -309,7 +309,7 @@ async function saveToDatabase(
   const weekCashbackRewardNewSnapshot = await weekCashbackRewardOldSnapshot.save({ session: mongooseSession });
 
   // Update the week metrics snapshot
-  const weekMetricsOldSnapshot = await getOrCreateWeekMetricsSnapshotDocument(
+  const weekMetricsOldSnapshot = await createWeekMetricsSnapshotDocument(
     {
       weekId,
       weekMetricsSnapshotModel,
