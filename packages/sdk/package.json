@@ -1,5 +1,5 @@
 {
-  "name": "@kpkpkg/gnosis-pay-rewards-sdk",
+  "name": "@karpatkey/gnosis-pay-rewards-sdk",
   "private": false,
   "version": "1.0.0",
   "type": "module",
