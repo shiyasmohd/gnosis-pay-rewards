@@ -1,6 +1,6 @@
 {
-  "name": "@karpatkey/gnosis-pay-rewards-sdk",
-  "private": true,
+  "name": "@kpkpkg/gnosis-pay-rewards-sdk",
+  "private": false,
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,7 +25,8 @@
     "build": "pnpm clean && rollup -c",
     "test": "jest --passWithNoTests",
     "dev": "nodemon -x ts-node src/index.ts",
-    "codegen": "echo 'No codegen for this package'"
+    "codegen": "echo 'No codegen for this package'",
+    "prepare": "pnpm clean && pnpm build"
   },
   "dependencies": {
     "@metamask/eth-sig-util": "^5.0.2",
