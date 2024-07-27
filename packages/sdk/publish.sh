@@ -5,7 +5,8 @@ if [ -z "$NPM_TOKEN" ]; then
   exit 1
 fi
 
-function revert_changes() {
+revert_changes()
+{
   echo "${original_npmrc_content}" > .npmrc
   echo "${original_package_json_content}" > package.json
 }
@@ -14,14 +15,14 @@ function revert_changes() {
 original_npmrc_content=$(cat .npmrc)
 original_package_json_content=$(cat package.json)
 # Update the name in package.json to match the GitHub package name
-target_name="@kpkpkg\/gnosis-pay-rewards-sdk" # @scope must match the repo owner on GitHub
+target_name="@kpkpkg/gnosis-pay-rewards-sdk" # @scope must match the repo owner on GitHub
 
 (
-  # Update the name in package.json to match the GitHub package name
-  sed -i '' 's/"name":.*/"name": "'$target_name'",/' package.json
+  # Update the name in package.json to match the GitHub package name using jq
+  jq --arg name "$target_name" '.name = $name' package.json > tmp.$$.json && mv tmp.$$.json package.json
 
   # configure token
-  echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> .npmrc
+  echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
 
   # Publish the package
   npm publish --access=public --no-workspaces
