@@ -43,7 +43,7 @@ const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFields
   },
   transactions: [
     {
-      type: mongooseSchemaAddressField,
+      ...mongooseSchemaAddressField,
       ref: gnosisPayTransactionModelName,
     },
   ],

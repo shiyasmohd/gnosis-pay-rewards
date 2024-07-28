@@ -2,7 +2,7 @@ import { ClientSession, Model, Mongoose, Schema } from 'mongoose';
 import { gnosisPayTransactionModelName } from './gnosisPayTransaction.js';
 import { dayjsUtc } from './dayjsUtc.js';
 import { WeekIdFormatType, WeekSnapshotDocumentFieldsType, toWeekDataId } from '../database/weekData.js';
-import { mongooseSchemaAddressField } from './sharedSchemaFields.js';
+import { isHash } from 'viem';
 
 export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
   {
@@ -10,8 +10,13 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
     netUsdVolume: { type: Number, required: true, default: 0 },
     transactions: [
       {
-        ...mongooseSchemaAddressField,
         ref: gnosisPayTransactionModelName,
+        type: String,
+        required: true,
+        validate: {
+          validator: (value: string) => isHash(value),
+          message: '{VALUE} is not a valid hash',
+        },
       },
     ],
   },

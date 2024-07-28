@@ -25,7 +25,10 @@ const gnosisPayTokenSchema = new Schema<TokenDocumentFieldsType>(
       type: Number,
       required: true,
     },
-    oracle: mongooseSchemaAddressField,
+    oracle: {
+      ...mongooseSchemaAddressField,
+      required: false,
+    },
   },
   {
     _id: false, // Disable the _id field
