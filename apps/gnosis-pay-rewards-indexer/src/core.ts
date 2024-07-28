@@ -11,6 +11,7 @@ import {
   saveBlock,
   getGnosisPaySafeAddressModel,
   getWeekCashbackRewardModel,
+  LogLevel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
@@ -249,7 +250,8 @@ async function handleBatchLogs({
 
       console.error(error);
 
-      logger.logError({
+      logger.log({
+        level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
         message: `Error processing ${log.eventName} log (${log.transactionHash}) at #${log.blockNumber} with error: ${error.message}`,
         metadata: {
           originalError: error.message,
