@@ -8,4 +8,4 @@ dayjsCore.extend(updateLocalePlugin);
 //   weekStart: 1,
 // });
 
-export const dayjs = dayjsCore;
+export const dayjsUtc = dayjsCore;

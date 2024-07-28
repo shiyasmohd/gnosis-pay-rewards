@@ -1,11 +1,11 @@
-import { Address } from "viem";
-import { WeekIdType } from "./weekData";
-import { GnosisPayTransactionFieldsType_Unpopulated } from "./spendTransaction";
+import { Address } from 'viem';
+import { WeekIdFormatType } from './weekData';
+import { GnosisPayTransactionFieldsType_Unpopulated } from './spendTransaction';
 
 export type WeekCashbackRewardDocumentFieldsTypeBase<TransactionsFieldType> = {
-  _id: `${WeekIdType}/${Address}`; // e.g. 2024-03-01/0x123456789abcdef123456789abcdef123456789ab
+  _id: `${WeekIdFormatType}/${Address}`; // e.g. 2024-03-01/0x123456789abcdef123456789abcdef123456789ab
   address: Address;
-  week: WeekIdType;
+  week: WeekIdFormatType;
   /**
    * The estimated reward for the week
    */

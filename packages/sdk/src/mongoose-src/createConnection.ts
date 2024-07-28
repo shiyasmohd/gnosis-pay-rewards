@@ -18,8 +18,8 @@ export async function createConnection(
   connectionString: string,
   opts: ConnectOptions = {
     bufferCommands: false,
-    connectTimeoutMS: 10000,
-  },
+    // connectTimeoutMS: 10000,
+  }
 ): Promise<Mongoose> {
   if (cached.conn) {
     return cached.conn;

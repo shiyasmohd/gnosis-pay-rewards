@@ -1,7 +1,9 @@
-import dayjs from 'dayjs';
+import dayjsCore from 'dayjs';
 import dayjsUtcPlugin from 'dayjs/plugin/utc.js';
+import updateLocalePlugin from 'dayjs/plugin/updateLocale.js';
 
-dayjs.extend(dayjsUtcPlugin);
+dayjsCore.extend(dayjsUtcPlugin);
+dayjsCore.extend(updateLocalePlugin);
 
 export type WeekSnapshotDocumentFieldsType = {
   /**
@@ -18,23 +20,23 @@ export type WeekSnapshotDocumentFieldsType = {
   transactions: string[];
 };
 
-export type WeekIdType = 'YYYY-MM-DD';
+export type WeekIdFormatType = 'YYYY-MM-DD';
 
 /**
  * ISO 8601 date format
  */
-export const weekDataIdFormat = 'YYYY-MM-DD' as const;
+export const weekIdFormat = 'YYYY-MM-DD' as const;
 
 /**
  * Convert a Unix timestamp to a week data ID
  * @param unixTimestamp - The Unix timestamp
  * @returns The week data ID
  */
-export function toWeekDataId(unixTimestamp: number): WeekIdType {
-  const weekStart = dayjs.unix(unixTimestamp).utc().startOf('week');
-  const yyyyMMDD = weekStart.format(weekDataIdFormat);
+export function toWeekDataId(unixTimestamp: number): WeekIdFormatType {
+  const weekStart = dayjsCore.unix(unixTimestamp).utc().startOf('week');
+  const yyyyMMDD = weekStart.format(weekIdFormat);
 
-  return yyyyMMDD as WeekIdType;
+  return yyyyMMDD as WeekIdFormatType;
 }
 
 /**

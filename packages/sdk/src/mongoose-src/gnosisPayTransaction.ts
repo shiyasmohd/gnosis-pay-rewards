@@ -1,11 +1,10 @@
-import {
-  GnosisPayTransactionFieldsType_Unpopulated,
-  isValidWeekDataId,
-  GnosisPayTransactionType,
-} from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Model, Mongoose, Schema } from 'mongoose';
-import { Address, isAddress, isHash } from 'viem';
-import { modelName as gnosisPaySafeAddressModelName } from './gnosisPaySafeAddress.js';
+import { isHash } from 'viem';
+import { mongooseSchemaAddressField } from './sharedSchemaFields';
+import { GnosisPayTransactionFieldsType_Unpopulated, GnosisPayTransactionType } from '../database/spendTransaction';
+import { isValidWeekDataId } from '../database/weekData';
+
+export const gnosisPayTransactionModelName = 'GnosisPayTransaction' as const;
 
 export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsType_Unpopulated>(
   {
@@ -68,13 +67,9 @@ export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsT
       required: true,
     },
     safeAddress: {
+      ...mongooseSchemaAddressField,
       ref: 'GnosisPaySafeAddress',
-      type: String,
       required: true,
-      validate: {
-        validator: (value: Address) => isAddress(value),
-        message: 'Invalid address',
-      },
     },
   },
   {
@@ -82,15 +77,13 @@ export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsT
   }
 );
 
-export const modelName = 'GnosisPayTransaction' as const;
-
 type GetTransactionModel = Model<GnosisPayTransactionFieldsType_Unpopulated>;
 
 export function getGnosisPayTransactionModel(mongooseConnection: Mongoose): GetTransactionModel {
   // Return cached model if it exists
-  if (mongooseConnection.models[modelName]) {
-    return mongooseConnection.models[modelName] as GetTransactionModel;
+  if (mongooseConnection.models[gnosisPayTransactionModelName]) {
+    return mongooseConnection.models[gnosisPayTransactionModelName] as GetTransactionModel;
   }
 
-  return mongooseConnection.model(modelName, gnosisPayTransactionSchema) as GetTransactionModel;
+  return mongooseConnection.model(gnosisPayTransactionModelName, gnosisPayTransactionSchema) as GetTransactionModel;
 }

@@ -1,17 +1,13 @@
-import { gnosisPayTokens, TokenDocumentFieldsType } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Schema, Mongoose, Model } from 'mongoose';
-import { Address, isAddress, isAddressEqual } from 'viem';
+import { Address, isAddressEqual } from 'viem';
+import { TokenDocumentFieldsType } from '../database/gnosisPayToken';
+import { mongooseSchemaAddressField } from './sharedSchemaFields';
+
+export const gnosisPayTokenModelName = 'Token' as const;
 
 const gnosisPayTokenSchema = new Schema<TokenDocumentFieldsType>(
   {
-    _id: {
-      type: String,
-      required: true,
-      validate: {
-        validator: (value: string) => isAddress(value),
-        message: '{VALUE} is not a valid address',
-      },
-    },
+    _id: mongooseSchemaAddressField,
     symbol: {
       type: String,
       required: true,
@@ -28,14 +24,7 @@ const gnosisPayTokenSchema = new Schema<TokenDocumentFieldsType>(
       type: Number,
       required: true,
     },
-    oracle: {
-      type: String,
-      required: false,
-      validate: {
-        validator: (value: string) => isAddress(value),
-        message: '{VALUE} is not a valid address',
-      },
-    },
+    oracle: mongooseSchemaAddressField,
   },
   {
     _id: false, // Disable the _id field
@@ -43,22 +32,24 @@ const gnosisPayTokenSchema = new Schema<TokenDocumentFieldsType>(
   }
 );
 
-export const modelName = 'Token' as const;
-
 export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocumentFieldsType> {
   // Return cached model if it exists
-  if (mongooseConnection.models[modelName]) {
-    return mongooseConnection.models[modelName] as Model<TokenDocumentFieldsType>;
+  if (mongooseConnection.models[gnosisPayTokenModelName]) {
+    return mongooseConnection.models[gnosisPayTokenModelName] as Model<TokenDocumentFieldsType>;
   }
 
-  return mongooseConnection.model(modelName, gnosisPayTokenSchema);
+  return mongooseConnection.model(gnosisPayTokenModelName, gnosisPayTokenSchema);
 }
 
 /**
  * Migrate the tokens to the database
  * @param mongooseClient - The mongoose client
  */
-export async function saveGnosisPayTokensToDatabase(tokenModel: Model<TokenDocumentFieldsType>, clean = false) {
+export async function saveGnosisPayTokensToDatabase(
+  tokenModel: Model<TokenDocumentFieldsType>,
+  tokens: TokenDocumentFieldsType[],
+  clean = false
+) {
   const mongooseSession = await tokenModel.startSession();
   mongooseSession.startTransaction();
 
@@ -70,7 +61,7 @@ export async function saveGnosisPayTokensToDatabase(tokenModel: Model<TokenDocum
     // Skip adding if the entries already exist
     const existingTokens = await tokenModel.find({}, { _id: 1 }, { session: mongooseSession });
 
-    const gpTokensWithId = gnosisPayTokens
+    const gpTokensWithId = tokens
       .map(({ address, ...token }) => ({
         ...token,
         // Make sure the address is lowercase

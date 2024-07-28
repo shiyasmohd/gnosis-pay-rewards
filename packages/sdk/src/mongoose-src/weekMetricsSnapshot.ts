@@ -1,36 +1,42 @@
-import { WeekIdType, WeekSnapshotDocumentFieldsType, toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
-
 import { ClientSession, Model, Mongoose, Schema } from 'mongoose';
-import { dayjs } from '../lib/dayjs.js';
-import { modelName as gnosisPayTransactionModelName } from './gnosisPayTransaction.js';
+import { gnosisPayTransactionModelName } from './gnosisPayTransaction.js';
+import { dayjsUtc } from './dayjsUtc.js';
+import { WeekIdFormatType, WeekSnapshotDocumentFieldsType, toWeekDataId } from '../database/weekData.js';
+import { mongooseSchemaAddressField } from './sharedSchemaFields.js';
 
 export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
   {
     date: { type: String, required: true },
     netUsdVolume: { type: Number, required: true, default: 0 },
-    transactions: {
-      type: [String],
-      ref: gnosisPayTransactionModelName,
-      default: [],
-    },
+    transactions: [
+      {
+        ...mongooseSchemaAddressField,
+        ref: gnosisPayTransactionModelName,
+      },
+    ],
   },
   { timestamps: true }
+  // @ts-ignore
 ).index({ date: 1 }, { unique: true });
 
-export const modelName = 'WeekMetricsSnapshot' as const;
+export const weekMetricsSnapshotModelName = 'WeekMetricsSnapshot' as const;
 
 export function getWeekMetricsSnapshotModel(mongooseConnection: Mongoose) {
   // Return cached model if it exists
-  if (mongooseConnection.models[modelName]) {
-    return mongooseConnection.models[modelName] as Model<WeekSnapshotDocumentFieldsType>;
+  if (mongooseConnection.models[weekMetricsSnapshotModelName]) {
+    return mongooseConnection.models[weekMetricsSnapshotModelName] as Model<WeekSnapshotDocumentFieldsType>;
   }
 
-  return mongooseConnection.model(modelName, weekDataSchema);
+  return mongooseConnection.model(weekMetricsSnapshotModelName, weekDataSchema);
 }
 
 type GetOrCreateWeekMetricsSnapshotDocumentParams =
   | { unixTimestamp: number; weekId?: never; weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType> }
-  | { unixTimestamp?: never; weekId: WeekIdType; weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType> };
+  | {
+      unixTimestamp?: never;
+      weekId: WeekIdFormatType;
+      weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>;
+    };
 
 export async function createWeekMetricsSnapshotDocument(
   { weekMetricsSnapshotModel, unixTimestamp, weekId }: GetOrCreateWeekMetricsSnapshotDocumentParams,
@@ -64,6 +70,6 @@ export async function getCurrentWeekMetricsSnapshotDocument(
 ) {
   return createWeekMetricsSnapshotDocument({
     weekMetricsSnapshotModel,
-    unixTimestamp: dayjs.utc().unix(),
+    unixTimestamp: dayjsUtc.utc().unix(),
   });
 }

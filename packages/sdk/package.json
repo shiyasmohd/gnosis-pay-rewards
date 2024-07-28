@@ -14,6 +14,20 @@
       "require": "./dist/index.js",
       "node": "./dist/index.js",
       "source": "./src/index.ts"
+    },
+    "./mongoose": {
+      "types": "./dist/mongoose/index.d.ts",
+      "import": "./dist/mongoose/index.esm.js",
+      "require": "./dist/mongoose/index.js",
+      "node": "./dist/mongoose/index.js",
+      "source": "./src/mongoose.ts"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "mongoose": [
+        "./dist/mongoose/index.d.ts"
+      ]
     }
   },
   "scripts": {
@@ -65,6 +79,7 @@
   },
   "peerDependencies": {
     "socket.io": "^4.7.5",
-    "dayjs": "^1.11.7"
+    "dayjs": "^1.11.7",
+    "mongoose": "^8.5.1"
   }
 }

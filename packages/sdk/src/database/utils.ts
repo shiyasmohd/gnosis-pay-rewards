@@ -1,4 +1,4 @@
-import { GnosisPayTransactionFieldsType_Unpopulated, GnosisPayTransactionType } from "./spendTransaction";
+import { GnosisPayTransactionFieldsType_Unpopulated, GnosisPayTransactionType } from './spendTransaction';
 
 export function calculateNetUsdVolume(transactions: GnosisPayTransactionFieldsType_Unpopulated[]) {
   return transactions.reduce((acc, transaction) => {

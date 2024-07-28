@@ -1,14 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Address, isAddress } from 'viem';
 import { ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
-import {
-  weekDataIdFormat,
-  GnosisPayTransactionFieldsType_Unpopulated,
-  WeekCashbackRewardDocumentFieldsType_Unpopulated,
-  WeekCashbackRewardDocumentFieldsType_Populated,
-} from '@karpatkey/gnosis-pay-rewards-sdk';
-import { modelName as transactionModelName } from './gnosisPayTransaction.js';
-import { dayjs } from '../lib/dayjs.js';
+import { WeekCashbackRewardDocumentFieldsType_Populated, WeekCashbackRewardDocumentFieldsType_Unpopulated } from '../database/weekReward';
+import { WeekIdFormatType, weekIdFormat } from '../database/weekData';
+import { GnosisPayTransactionFieldsType_Unpopulated } from '../database/spendTransaction';
+import { dayjsUtc } from './dayjsUtc';
 
 const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType_Unpopulated>(
   {
@@ -51,21 +47,21 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
     transactions: [
       {
         type: String,
-        ref: transactionModelName,
+        ref: 'GnosisPayTransaction',
       },
     ],
   },
   { timestamps: true }
 );
 
-export const modelName = 'WeekCashbackReward' as const;
+const modelName = 'WeekCashbackReward' as const;
 
 /**
  * @param week - e.g. 2024-03-01
  * @param address - e.g. 0x123456789abcdef123456789abcdef123456789ab
  * @returns
  */
-export function toDocumentId(week: typeof weekDataIdFormat, address: Address) {
+export function toDocumentId(week: typeof weekIdFormat, address: Address) {
   return `${week}/${address.toLowerCase()}`;
 }
 
@@ -74,8 +70,8 @@ export function toDocumentId(week: typeof weekDataIdFormat, address: Address) {
  * @returns e.g. 2024-03-01
  */
 export function getCurrentWeekId() {
-  const now = dayjs.utc();
-  const isoWeek = now.format(weekDataIdFormat);
+  const now = dayjsUtc.utc();
+  const isoWeek = now.format(weekIdFormat);
   return isoWeek;
 }
 
@@ -99,7 +95,7 @@ export async function createWeekCashbackRewardDocument<Populated extends boolean
   }: {
     populateTransactions?: Populated;
     address: Address;
-    week: typeof weekDataIdFormat;
+    week: WeekIdFormatType;
     weekCashbackRewardModel: Model<WeekCashbackRewardDocumentFieldsType_Unpopulated>;
   },
   session?: ClientSession

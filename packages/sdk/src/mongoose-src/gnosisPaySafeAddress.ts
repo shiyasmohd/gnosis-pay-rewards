@@ -1,6 +1,10 @@
-import { GnosisPayTransactionFieldsType_Unpopulated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
-import { Address, isAddress } from 'viem';
+import { Address } from 'viem';
+import { GnosisPayTransactionFieldsType_Unpopulated } from '../database/spendTransaction';
+import { mongooseSchemaAddressField } from './sharedSchemaFields';
+import { gnosisPayTransactionModelName } from './gnosisPayTransaction';
+
+export const gnosisPaySafeAddressModelName = 'GnosisPaySafeAddress' as const;
 
 type GnosisPaySafeAddressDocumentFieldsType = {
   _id: Address;
@@ -21,17 +25,8 @@ export type GnosisPaySafeAddressDocumentFieldsType_WithTransactionsPopulated = G
   transactions: GnosisPayTransactionFieldsType_Unpopulated[];
 };
 
-const addressField = {
-  type: String,
-  required: true,
-  validate: {
-    validator: (value: string) => isAddress(value),
-    message: '{VALUE} is not a valid address',
-  },
-};
-
 const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFieldsType>({
-  _id: addressField,
+  _id: mongooseSchemaAddressField,
   netUsdVolume: {
     type: Number,
     required: true,
@@ -40,37 +35,32 @@ const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFields
     type: Number,
     required: true,
   },
-  address: addressField,
-  owners: {
-    type: [String],
-    required: true,
-    validate: {
-      validator: (value: Address[]) => value.every((address) => isAddress(address)),
-      message: '{VALUE} is not a valid address',
-    },
-  },
+  address: mongooseSchemaAddressField,
+  owners: [mongooseSchemaAddressField],
   isOg: {
     type: Boolean,
     required: true,
   },
-  transactions: {
-    type: [String],
-    ref: 'GnosisPayTransaction' as const,
-    default: [],
-  },
+  transactions: [
+    {
+      type: mongooseSchemaAddressField,
+      ref: gnosisPayTransactionModelName,
+    },
+  ],
 });
 
 type GnosisPaySafeAddressModel = Model<GnosisPaySafeAddressDocumentFieldsType>;
 
-export const modelName = 'GnosisPaySafeAddress';
-
 export function getGnosisPaySafeAddressModel(mongooseConnection: Mongoose): GnosisPaySafeAddressModel {
   // Return cached model if it exists
-  if (mongooseConnection.models[modelName]) {
-    return mongooseConnection.models[modelName];
+  if (mongooseConnection.models[gnosisPaySafeAddressModelName]) {
+    return mongooseConnection.models[gnosisPaySafeAddressModelName];
   }
 
-  return mongooseConnection.model<GnosisPaySafeAddressDocumentFieldsType>(modelName, gnosisPaySafeAddressSchema);
+  return mongooseConnection.model<GnosisPaySafeAddressDocumentFieldsType>(
+    gnosisPaySafeAddressModelName,
+    gnosisPaySafeAddressSchema
+  );
 }
 
 export async function createGnosisPaySafeAddressDocument(
