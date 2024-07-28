@@ -1,11 +1,11 @@
 import { GnosisPayTransactionFieldsType_Populated } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js';
-import { buildSocketIoServer } from './server.js';
 import {
+  getGnosisPayTransactionModel,
   getCurrentWeekMetricsSnapshotDocument,
   getWeekMetricsSnapshotModel,
   createWeekMetricsSnapshotDocument,
-} from './database/weekMetricsSnapshot.js';
+} from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
+import { buildSocketIoServer } from './server.js';
 
 export function addSocketComms({
   socketIoServer,

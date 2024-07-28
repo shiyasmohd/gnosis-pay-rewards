@@ -3,12 +3,15 @@ import {
   GnosisPayTransactionFieldsType_Populated,
   toWeekDataId,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  createMongooseLogger,
+  getGnosisPayTransactionModel,
+  getWeekCashbackRewardModel,
+  toDocumentId,
+} from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
 import { isAddress } from 'viem';
 import { buildExpressApp } from './server.js';
-import { createMongooseLogger } from './database/logger.js';
-import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js';
-import { getWeekCashbackRewardModel, toDocumentId } from './database/weekCashbackReward.js';
 
 export function addHttpRoutes({
   expressApp,

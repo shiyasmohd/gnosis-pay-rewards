@@ -1,24 +1,30 @@
 import { gnosisPayStartBlock, bigMath, gnosisPayTokens } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  createConnection,
+  getGnosisPayTransactionModel,
+  getTokenModel,
+  saveGnosisPayTokensToDatabase,
+  createMongooseLogger,
+  getLoggerModel,
+  getWeekMetricsSnapshotModel,
+  getBlockModel,
+  saveBlock,
+  getGnosisPaySafeAddressModel,
+  getWeekCashbackRewardModel,
+} from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
 
 import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
-import { getTokenModel, saveGnosisPayTokensToDatabase } from './database/gnosisPayToken.js';
 import { clampToBlockRange } from './utils.js';
 import { buildSocketIoServer, buildExpressApp } from './server.js';
 import { SOCKET_IO_SERVER_PORT, MONGODB_URI, HTTP_SERVER_HOST, HTTP_SERVER_PORT } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
-import { createConnection } from './database/createConnection.js';
-import { getGnosisPayTransactionModel } from './database/gnosisPayTransaction.js';
+
 import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
 import { processRefundLog, processSpendLog } from './processSpendLog.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
-import { getWeekCashbackRewardModel } from './database/weekCashbackReward.js';
-import { createMongooseLogger, getLoggerModel } from './database/logger.js';
-import { getWeekMetricsSnapshotModel } from './database/weekMetricsSnapshot.js';
-import { getBlockModel, saveBlock } from './database/block.js';
-import { getGnosisPaySafeAddressModel } from './database/gnosisPaySafeAddress.js';
 
 const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
 
@@ -98,7 +104,7 @@ export async function startIndexing({
     await session.endSession();
 
     // Save the Gnosis Pay tokens to the database
-    await saveGnosisPayTokensToDatabase(gnosisPayTokenModel);
+    await saveGnosisPayTokensToDatabase(gnosisPayTokenModel, gnosisPayTokens);
   }
 
   let toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);

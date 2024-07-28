@@ -12,21 +12,23 @@ import {
   ConditionalReturnType,
   calculateWeekRewardAmount,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  WeekCashbackRewardModelType,
+  createWeekCashbackRewardDocument,
+  createWeekMetricsSnapshotDocument,
+  GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
+  createGnosisPaySafeAddressDocument,
+} from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Model } from 'mongoose';
 import { PublicClient, Transport, formatUnits, Address } from 'viem';
 import { gnosis } from 'viem/chains';
 import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
-import { WeekCashbackRewardModelType, createWeekCashbackRewardDocument } from './database/weekCashbackReward.js';
+
 import { getBlockByNumber as getBlockByNumberCore } from './getBlockByNumber.js';
 import { getGnosisPaySafeAddressFromModule } from './gp/getGnosisPaySafeAddressFromModule.js';
 import { getGnoTokenBalance } from './getGnoTokenBalance.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
-import { createWeekMetricsSnapshotDocument } from './database/weekMetricsSnapshot.js';
 import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
-import {
-  GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
-  createGnosisPaySafeAddressDocument,
-} from './database/gnosisPaySafeAddress.js';
 
 type MongooseConfiguredModels = {
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
@@ -261,7 +263,6 @@ async function saveToDatabase(
     weekMetricsSnapshotModel,
     gnosisPaySafeAddressModel,
   } = mongooseModels;
-
   gnosispayTransactionPayload.safeAddress = gnosispayTransactionPayload.safeAddress.toLowerCase() as Address;
   const { weekId, gnoUsdPrice, gnoBalance, safeAddress } = gnosispayTransactionPayload;
 
