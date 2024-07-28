@@ -1,7 +1,8 @@
 import { Schema, Mongoose, Model } from 'mongoose';
 import { Address, isAddressEqual } from 'viem';
-import { TokenDocumentFieldsType } from '../database/gnosisPayToken';
 import { mongooseSchemaAddressField } from './sharedSchemaFields';
+import { TokenDocumentFieldsType } from '../database/gnosisPayToken';
+import { SerializableErc20TokenType } from '../gnoisPayTokens';
 
 export const gnosisPayTokenModelName = 'Token' as const;
 
@@ -47,7 +48,7 @@ export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocument
  */
 export async function saveGnosisPayTokensToDatabase(
   tokenModel: Model<TokenDocumentFieldsType>,
-  tokens: TokenDocumentFieldsType[],
+  tokens: SerializableErc20TokenType[],
   clean = false
 ) {
   const mongooseSession = await tokenModel.startSession();
