@@ -64,11 +64,15 @@ export function getGnosisPaySafeAddressModel(mongooseConnection: Mongoose): Gnos
 }
 
 export async function createGnosisPaySafeAddressDocument(
+  payload: {
+    safeAddress: Address;
+    owners: Address[];
+    isOg: boolean;
+  },
   gnosisPaySafeAddressModel: Model<GnosisPaySafeAddressDocumentFieldsType>,
-  safeAddress: Address,
   mongooseSession?: ClientSession
 ): Promise<HydratedDocument<GnosisPaySafeAddressDocumentFieldsType>> {
-  safeAddress = safeAddress.toLowerCase() as Address;
+  const safeAddress = payload.safeAddress.toLowerCase() as Address;
 
   const gnosisPaySafeAddressDocument = await gnosisPaySafeAddressModel.findById(
     safeAddress,
@@ -85,8 +89,8 @@ export async function createGnosisPaySafeAddressDocument(
     address: safeAddress,
     netUsdVolume: 0,
     gnoBalance: 0,
-    owners: [],
-    isOg: false,
+    owners: payload.owners,
+    isOg: payload.isOg,
     transactions: [],
   }).save({ session: mongooseSession });
 }
