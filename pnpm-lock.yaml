@@ -272,6 +272,9 @@ importers:
       express:
         specifier: ^4.18.2
         version: 4.19.2
+      jotai:
+        specifier: ^2.2.1
+        version: 2.2.1(react@18.2.0)
       mongoose:
         specifier: ^7.1.0
         version: 7.1.0
@@ -381,7 +384,7 @@ importers:
         version: 6.9.0
       forge-std:
         specifier: github:foundry-rs/forge-std#v1
-        version: github.com/foundry-rs/forge-std/07263d193d621c4b2b0ce8b4d54af58f6957d97d
+        version: github.com/foundry-rs/forge-std/1714bee72e286e73f76e320d110e0eaf5c4e649d
       hardhat:
         specifier: ^2.19.3
         version: 2.19.3(ts-node@10.9.2)(typescript@5.5.2)
@@ -466,7 +469,7 @@ importers:
         version: 4.7.5
       viem:
         specifier: ^2.7.16
-        version: 2.7.16(typescript@5.3.3)(zod@3.22.4)
+        version: 2.7.16(typescript@5.5.2)(zod@3.22.4)
     devDependencies:
       '@babel/core':
         specifier: ^7.21.4
@@ -497,7 +500,7 @@ importers:
         version: 18.15.11
       abitype:
         specifier: ^0.2.5
-        version: 0.2.5(typescript@5.3.3)(zod@3.22.4)
+        version: 0.2.5(typescript@5.5.2)(zod@3.22.4)
       babel-jest:
         specifier: ^29.5.0
         version: 29.5.0(@babel/core@7.21.4)
@@ -7141,9 +7144,9 @@ packages:
     resolution: {integrity: sha512-alnSxNZKC1ssKrFG5ytluu9kNKGwBifb1xhOyCqwMnm72JksbCEo0UWlNvaeCiYMwhYvMyS++mfxcLAsV/8Gfw==}
     dependencies:
       '@noble/hashes': 1.4.0
-      '@safe-global/safe-deployments': 1.36.0
+      '@safe-global/safe-deployments': 1.37.2
       ethereumjs-util: 7.1.5
-      ethers: 6.13.0
+      ethers: 6.13.2
       semver: 7.6.2
       web3: 1.10.4
       web3-core: 1.10.4
@@ -7182,8 +7185,8 @@ packages:
   /@safe-global/safe-core-sdk-types@3.0.1:
     resolution: {integrity: sha512-2AdlK6GJ5YEZXrQwFsHFwQScnNo3OonF3O6KzVeMc0/7OAuOTYBzKq1jzju2Eck6Z8UNPUinlHoF2Zb2pvTKhw==}
     dependencies:
-      '@safe-global/safe-deployments': 1.36.0
-      ethers: 6.13.0
+      '@safe-global/safe-deployments': 1.37.2
+      ethers: 6.13.2
       web3-core: 1.10.4
       web3-utils: 1.10.4
     transitivePeerDependencies:
@@ -7193,8 +7196,8 @@ packages:
       - utf-8-validate
     dev: false
 
-  /@safe-global/safe-deployments@1.36.0:
-    resolution: {integrity: sha512-9MbDJveRR64AbmzjIpuUqmDBDtOZpXpvkyhTUs+5UOPT3WgSO375/ZTO7hZpywP7+EmxnjkGc9EoxjGcC4TAyw==}
+  /@safe-global/safe-deployments@1.37.2:
+    resolution: {integrity: sha512-kWRim5vY9W/yNKUUehUQDhCHz7NWzXjhkpMDvvnrrkEn9U461zwCcmJmPVnPrjnaY4dPpJsGZSzUuU4+uxH+vg==}
     dependencies:
       semver: 7.6.2
     dev: false
@@ -9649,20 +9652,6 @@ packages:
       typescript: 5.5.2
     dev: false
 
-  /abitype@0.2.5(typescript@5.3.3)(zod@3.22.4):
-    resolution: {integrity: sha512-t1iiokWYpkrziu4WL2Gb6YdGvaP9ZKs7WnA39TI8TsW2E99GVRgDPW/xOKhzoCdyxOYt550CNYEFluCwGaFHaA==}
-    engines: {pnpm: '>=7'}
-    peerDependencies:
-      typescript: '>=4.7.4'
-      zod: '>=3.19.1'
-    peerDependenciesMeta:
-      zod:
-        optional: true
-    dependencies:
-      typescript: 5.3.3
-      zod: 3.22.4
-    dev: true
-
   /abitype@0.2.5(typescript@5.5.2)(zod@3.22.4):
     resolution: {integrity: sha512-t1iiokWYpkrziu4WL2Gb6YdGvaP9ZKs7WnA39TI8TsW2E99GVRgDPW/xOKhzoCdyxOYt550CNYEFluCwGaFHaA==}
     engines: {pnpm: '>=7'}
@@ -9675,7 +9664,6 @@ packages:
     dependencies:
       typescript: 5.5.2
       zod: 3.22.4
-    dev: false
 
   /abitype@0.9.8(typescript@5.5.2)(zod@3.22.4):
     resolution: {integrity: sha512-puLifILdm+8sjyss4S+fsUN09obiT1g2YW6CtcQF+QDzxR0euzgEB29MZujC6zMk2a6SVmtttq1fc6+YFA7WYQ==}
@@ -13003,6 +12991,22 @@ packages:
       aes-js: 4.0.0-beta.5
       tslib: 2.4.0
       ws: 8.5.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+    dev: false
+
+  /ethers@6.13.2:
+    resolution: {integrity: sha512-9VkriTTed+/27BGuY1s0hf441kqwHJ1wtN2edksEtiRvXx+soxRX3iSXTfFqq2+YwrOqbDoTHjIhQnjJRlzKmg==}
+    engines: {node: '>=14.0.0'}
+    dependencies:
+      '@adraffy/ens-normalize': 1.10.1
+      '@noble/curves': 1.2.0
+      '@noble/hashes': 1.3.2
+      '@types/node': 18.15.13
+      aes-js: 4.0.0-beta.5
+      tslib: 2.4.0
+      ws: 8.17.1
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -22545,10 +22549,10 @@ packages:
       use-sync-external-store: 1.2.0(react@18.2.0)
     dev: false
 
-  github.com/foundry-rs/forge-std/07263d193d621c4b2b0ce8b4d54af58f6957d97d:
-    resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/07263d193d621c4b2b0ce8b4d54af58f6957d97d}
+  github.com/foundry-rs/forge-std/1714bee72e286e73f76e320d110e0eaf5c4e649d:
+    resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/1714bee72e286e73f76e320d110e0eaf5c4e649d}
     name: forge-std
-    version: 1.9.1
+    version: 1.9.2
     dev: true
 
 settings:
