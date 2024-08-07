@@ -8,7 +8,6 @@ import {
   getLoggerModel,
   getWeekMetricsSnapshotModel,
   getBlockModel,
-  saveBlock,
   getGnosisPaySafeAddressModel,
   getWeekCashbackRewardModel,
   LogLevel,
@@ -26,8 +25,10 @@ import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
 import { processRefundLog, processSpendLog } from './processSpendLog.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
+import { atom, createStore } from 'jotai';
+import { IndexerStateAtomType } from './state.js';
 
-const indexBlockSize = 12n; // 12 blocks is roughly 60 seconds of data
+const indexBlockSize = 120n; // 12 blocks is roughly 60 seconds of data
 
 export async function startIndexing({
   client,
@@ -44,97 +45,102 @@ export async function startIndexing({
   // Connect to the database
   const mongooseConnection = await createConnection(MONGODB_URI);
 
+  console.log('Connected to mongodb at', mongooseConnection.connection.host);
+
   console.log('Migrating Gnosis Pay tokens to database');
 
-  const gnosisPaySafeAddressModel = getGnosisPaySafeAddressModel(mongooseConnection);
-  const gnosisPayTransactionModel = getGnosisPayTransactionModel(mongooseConnection);
-  const weekCashbackRewardModel = getWeekCashbackRewardModel(mongooseConnection);
-  const weekMetricsSnapshotModel = getWeekMetricsSnapshotModel(mongooseConnection);
-  const gnosisPayTokenModel = getTokenModel(mongooseConnection);
-  const loggerModel = getLoggerModel(mongooseConnection);
-  const blockModel = getBlockModel(mongooseConnection);
-  const logger = createMongooseLogger(loggerModel);
+  const mongooseModels = {
+    gnosisPaySafeAddressModel: getGnosisPaySafeAddressModel(mongooseConnection),
+    gnosisPayTransactionModel: getGnosisPayTransactionModel(mongooseConnection),
+    weekCashbackRewardModel: getWeekCashbackRewardModel(mongooseConnection),
+    weekMetricsSnapshotModel: getWeekMetricsSnapshotModel(mongooseConnection),
+    gnosisPayTokenModel: getTokenModel(mongooseConnection),
+    loggerModel: getLoggerModel(mongooseConnection),
+    blockModel: getBlockModel(mongooseConnection),
+  };
 
-  const restApiServer = addHttpRoutes({
-    expressApp: buildExpressApp(),
-    gnosisPayTransactionModel,
-    weekCashbackRewardModel,
-    logger,
-  });
-
-  const socketIoServer = addSocketComms({
-    socketIoServer: buildSocketIoServer(restApiServer),
-    gnosisPayTransactionModel,
-    weekMetricsSnapshotModel,
-  });
-
-  restApiServer.listen(HTTP_SERVER_PORT, HTTP_SERVER_HOST);
-  socketIoServer.listen(SOCKET_IO_SERVER_PORT);
+  const logger = createMongooseLogger(mongooseModels.loggerModel);
 
   console.log('Starting indexing');
 
   // Initialize the latest block
-  let latestBlock = await client.getBlock({ includeTransactions: false });
-
+  const latestBlockInitial = await client.getBlock({ includeTransactions: false });
   // default value is June 29th, 2024. Otherwise, we fetch the latest block from the indexed pending rewards
-  let fromBlockNumber = gnosisPayStartBlock;
+  const fromBlockNumberInitial = gnosisPayStartBlock;
+  const toBlockNumberInitial = clampToBlockRange(fromBlockNumberInitial, latestBlockInitial.number, indexBlockSize);
+
+  const indexerStateAtom = atom<IndexerStateAtomType>({
+    latestBlockNumber: latestBlockInitial.number,
+    fromBlockNumber: fromBlockNumberInitial,
+    toBlockNumber: toBlockNumberInitial,
+  });
+  const indexerStateStore = createStore();
+  const getIndexerState = () => indexerStateStore.get(indexerStateAtom);
 
   if (resumeIndexing === true) {
-    const [latestGnosisPayTransaction] = await gnosisPayTransactionModel.find().sort({ blockNumber: -1 }).limit(1);
+    const [latestGnosisPayTransaction] = await mongooseModels.gnosisPayTransactionModel
+      .find()
+      .sort({ blockNumber: -1 })
+      .limit(1);
+
     if (latestGnosisPayTransaction !== undefined) {
-      fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - indexBlockSize;
+      const fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - indexBlockSize;
+      indexerStateStore.set(indexerStateAtom, (prev) => ({
+        ...prev,
+        fromBlockNumber,
+      }));
       console.log(`Resuming indexing from #${fromBlockNumber}`);
     } else {
-      console.warn(`No pending rewards found, starting from the beginning at #${gnosisPayStartBlock}`);
+      console.warn(`No pending rewards found, starting from the beginning at #${fromBlockNumberInitial}`);
     }
   } else {
     const session = await mongooseConnection.startSession();
-
     // Clean up the database
     await session.withTransaction(async () => {
-      await gnosisPaySafeAddressModel.deleteMany();
-      await gnosisPayTransactionModel.deleteMany();
-      await blockModel.deleteMany();
-      await weekCashbackRewardModel.deleteMany();
-      await weekMetricsSnapshotModel.deleteMany();
-      await loggerModel.deleteMany();
-      await gnosisPayTokenModel.deleteMany();
+      for (const modelName of mongooseConnection.modelNames()) {
+        await mongooseConnection.model(modelName).deleteMany();
+      }
     });
-
     await session.commitTransaction();
     await session.endSession();
-
     // Save the Gnosis Pay tokens to the database
-    await saveGnosisPayTokensToDatabase(gnosisPayTokenModel, gnosisPayTokens);
+    await saveGnosisPayTokensToDatabase(mongooseModels.gnosisPayTokenModel, gnosisPayTokens);
   }
-
-  let toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);
 
   // Watch for new blocks
   client.watchBlocks({
     includeTransactions: false,
     onBlock(block) {
-      latestBlock = block;
-
-      saveBlock(
-        {
-          number: Number(block.number),
-          hash: block.hash,
-          timestamp: Number(block.timestamp),
-        },
-        blockModel
-      ).catch((e) => {
-        console.error('Error creating block', e);
-      });
+      indexerStateStore.set(indexerStateAtom, (prev) => ({
+        ...prev,
+        latestBlockNumber: block.number,
+      }));
     },
   });
 
-  const shouldFetchLogs = toBlockNumber <= latestBlock.number;
+  const restApiServer = addHttpRoutes({
+    expressApp: buildExpressApp(),
+    gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
+    weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
+    logger,
+    getIndexerState() {
+      return indexerStateStore.get(indexerStateAtom);
+    },
+  });
 
-  console.log({ fromBlockNumber, toBlockNumber, shouldFetchLogs });
+  const socketIoServer = addSocketComms({
+    socketIoServer: buildSocketIoServer(restApiServer),
+    gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
+    weekMetricsSnapshotModel: mongooseModels.weekMetricsSnapshotModel,
+  });
+
+  restApiServer.listen(HTTP_SERVER_PORT, HTTP_SERVER_HOST);
+  socketIoServer.listen(SOCKET_IO_SERVER_PORT);
 
   // Index all the logs until the latest block
-  while (toBlockNumber <= latestBlock.number) {
+  while (shouldFetchLogs(getIndexerState)) {
+    const { fromBlockNumber, toBlockNumber, latestBlockNumber } = getIndexerState();
+
     try {
       await logger.logDebug({
         message: `Fetching logs from #${fromBlockNumber} to #${toBlockNumber}`,
@@ -159,10 +165,10 @@ export async function startIndexing({
     await handleBatchLogs({
       client,
       mongooseModels: {
-        gnosisPayTransactionModel,
-        weekCashbackRewardModel,
-        weekMetricsSnapshotModel,
-        gnosisPaySafeAddressModel,
+        gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
+        weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
+        weekMetricsSnapshotModel: mongooseModels.weekMetricsSnapshotModel,
+        gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
       },
       logs: [...spendLogs, ...refundLogs],
       logger,
@@ -170,12 +176,19 @@ export async function startIndexing({
     });
 
     // Move to the next block range
-    fromBlockNumber += indexBlockSize;
-    toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlock.number, indexBlockSize);
+    const nextFromBlockNumber = fromBlockNumber + indexBlockSize;
+    const nextToBlockNumber = clampToBlockRange(nextFromBlockNumber, latestBlockNumber, indexBlockSize);
+
+    indexerStateStore.set(indexerStateAtom, (prev) => ({
+      ...prev,
+      fromBlockNumber: nextFromBlockNumber,
+      toBlockNumber: nextToBlockNumber,
+    }));
 
     // Sanity check to make sure we're not going too fast
-    const distanceToLatestBlock = bigMath.abs(toBlockNumber - latestBlock.number);
+    const distanceToLatestBlock = bigMath.abs(nextToBlockNumber - latestBlockNumber);
     console.log({ distanceToLatestBlock });
+
     // Cooldown for 20 seconds if we're within a distance of 10 blocks
     if (distanceToLatestBlock < 10n) {
       const targetBlockNumber = toBlockNumber + indexBlockSize + 3n;
@@ -192,6 +205,12 @@ export async function startIndexing({
       });
     }
   }
+}
+
+function shouldFetchLogs(getIndexerState: () => IndexerStateAtomType) {
+  const { toBlockNumber, latestBlockNumber } = getIndexerState();
+
+  return toBlockNumber <= latestBlockNumber;
 }
 
 async function handleBatchLogs({

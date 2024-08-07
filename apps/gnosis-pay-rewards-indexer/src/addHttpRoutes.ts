@@ -1,30 +1,43 @@
-import {
-  GnosisPayTransactionFieldsType_Unpopulated,
-  GnosisPayTransactionFieldsType_Populated,
-  toWeekDataId,
-} from '@karpatkey/gnosis-pay-rewards-sdk';
+import { GnosisPayTransactionFieldsType_Unpopulated, toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   createMongooseLogger,
   getGnosisPayTransactionModel,
   getWeekCashbackRewardModel,
   toDocumentId,
+  createWeekCashbackRewardDocument,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
 import { isAddress } from 'viem';
 import { buildExpressApp } from './server.js';
+import dayjs from 'dayjs';
+import dayjsUtc from 'dayjs/plugin/utc.js';
+import { IndexerStateAtomType } from './state.js';
+
+dayjs.extend(dayjsUtc);
 
 export function addHttpRoutes({
   expressApp,
   gnosisPayTransactionModel,
   weekCashbackRewardModel,
+  getIndexerState,
 }: {
   expressApp: ReturnType<typeof buildExpressApp>;
   gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
   weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
   logger: ReturnType<typeof createMongooseLogger>;
+  getIndexerState: () => IndexerStateAtomType;
 }) {
   expressApp.get<'/status'>('/status', (_, res) => {
+    const { fromBlockNumber, toBlockNumber, latestBlockNumber } = getIndexerState();
+
     return res.send({
+      data: {
+        indexerState: {
+          fromBlockNumber: Number(fromBlockNumber),
+          toBlockNumber: Number(toBlockNumber),
+          latestBlockNumber: Number(latestBlockNumber),
+        },
+      },
       status: 'ok',
       statusCode: 200,
     });
@@ -35,19 +48,6 @@ export function addHttpRoutes({
       status: 'ok',
       statusCode: 200,
     });
-  });
-
-  expressApp.get<'/pending-rewards'>('/pending-rewards', async (_, res) => {
-    try {
-      const spendTransactions = await gnosisPayTransactionModel.find({}).lean();
-      return res.json({
-        data: spendTransactions,
-        status: 'ok',
-        statusCode: 200,
-      });
-    } catch (error) {
-      return returnInternalServerError(res, error as Error);
-    }
   });
 
   expressApp.get<'/cashbacks/:safeAddress'>('/cashbacks/:safeAddress', async (req, res) => {
@@ -62,40 +62,48 @@ export function addHttpRoutes({
         });
       }
 
-      const allCashbacks = await weekCashbackRewardModel
-        .find({
-          address: new RegExp(safeAddress, 'i'),
-        })
-        .populate<{
-          transactions: GnosisPayTransactionFieldsType_Populated;
-        }>({
-          path: 'transactions',
-          select: {
-            _id: 0,
-            blockNumber: 1,
-            blockTimestamp: 1,
-            transactionHash: 1,
-            spentAmount: 1,
-            spentAmountUsd: 1,
-            gnoBalance: 1,
-          },
-          populate: {
-            path: 'amountToken',
-            select: {
-              symbol: 1,
-              decimals: 1,
-              name: 1,
-            },
-            transform: (doc, id) => ({
-              ...doc,
-              address: id,
-            }),
-          },
-        })
-        .lean();
+      const week = toWeekDataId(dayjs.utc().unix());
+      const weekCashbackRewardDocument = await createWeekCashbackRewardDocument({
+        address: safeAddress,
+        populateTransactions: true,
+        weekCashbackRewardModel,
+        week,
+      });
+
+      // const allCashbacks = await weekCashbackRewardModel
+      //   .find({
+      //     address: new RegExp(safeAddress, 'i'),
+      //   })
+      //   .populate<{
+      //     transactions: GnosisPayTransactionFieldsType_Populated;
+      //   }>({
+      //     path: 'transactions',
+      //     select: {
+      //       _id: 0,
+      //       blockNumber: 1,
+      //       blockTimestamp: 1,
+      //       transactionHash: 1,
+      //       spentAmount: 1,
+      //       spentAmountUsd: 1,
+      //       gnoBalance: 1,
+      //     },
+      //     populate: {
+      //       path: 'amountToken',
+      //       select: {
+      //         symbol: 1,
+      //         decimals: 1,
+      //         name: 1,
+      //       },
+      //       transform: (doc, id) => ({
+      //         ...doc,
+      //         address: id,
+      //       }),
+      //     },
+      //   })
+      //   .lean();
 
       return res.json({
-        data: allCashbacks,
+        data: weekCashbackRewardDocument,
         status: 'ok',
         statusCode: 200,
         _query: {
