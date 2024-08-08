@@ -11,21 +11,24 @@ const sentientAddress = '0x0000000000000000000000000000000000000001' as const;
  */
 export async function getGnosisPaySafeOwners({
   client,
-  gnosisPaySafeAddress,
+  safeAddress,
+  blockNumber,
 }: {
-  gnosisPaySafeAddress: Address;
+  safeAddress: Address;
   /**
    * The public client to use
    */
   client: PublicClient<Transport, typeof gnosis>;
-}): Promise<ConditionalReturnType<true, readonly Address[], Error> | ConditionalReturnType<false, Address[], Error>> {
+  blockNumber?: bigint;
+}): Promise<ConditionalReturnType<true, Address[], Error> | ConditionalReturnType<false, Address[], Error>> {
   try {
     // Find the Delay
     const [modules] = await client.readContract({
-      address: gnosisPaySafeAddress,
+      address: safeAddress,
       abi,
       functionName: 'getModulesPaginated',
       args: [sentientAddress, 1n],
+      blockNumber,
     });
 
     // The first module is the Delay module
@@ -40,7 +43,7 @@ export async function getGnosisPaySafeOwners({
     });
 
     return {
-      data: owners,
+      data: owners as Address[],
       error: null,
     };
   } catch (e) {

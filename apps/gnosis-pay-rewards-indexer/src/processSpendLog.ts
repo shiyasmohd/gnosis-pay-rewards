@@ -29,6 +29,7 @@ import { getGnosisPaySafeAddressFromModule } from './gp/getGnosisPaySafeAddressF
 import { getGnoTokenBalance } from './getGnoTokenBalance.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
+import { getGnosisPaySafeOwners as getGnosisPaySafeOwnersCore } from './gp/getGnosisPaySafeOwners.js';
 
 type MongooseConfiguredModels = {
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
@@ -75,6 +76,16 @@ export async function processSpendLog({
       client,
     });
 
+    const safeOwners = await getGnosisPaySafeOwners({
+      safeAddress,
+      client,
+      blockNumber,
+    });
+
+    const safeHasOgNft = await hasGnosisPayOgNft(client, safeOwners).then((hasArray) =>
+      hasArray.some((addr) => addr === true)
+    );
+
     const gnosisPaySafeGnoTokenBalance = await getGnoTokenBalance({
       address: safeAddress,
       blockNumber,
@@ -117,6 +128,15 @@ export async function processSpendLog({
         transactionHash,
         weekId,
       },
+      {
+        _id: safeAddress,
+        address: safeAddress,
+        gnoBalance,
+        isOg: safeHasOgNft,
+        owners: safeOwners,
+        netUsdVolume: 0,
+        transactions: [],
+      },
       mongooseModels
     );
 
@@ -154,10 +174,15 @@ export async function processRefundLog({
       client,
     });
 
-    const safeHasOgNft = await hasGnosisPayOgNft({
+    const safeOwners = await getGnosisPaySafeOwners({
+      safeAddress,
       client,
-      gnosisPaySafeAddress: safeAddress,
+      blockNumber,
     });
+
+    const safeHasOgNft = await hasGnosisPayOgNft(client, safeOwners).then((hasArray) =>
+      hasArray.some((addr) => addr === true)
+    );
 
     const gnosisPaySafeGnoTokenBalance = await getGnoTokenBalance({
       address: safeAddress,
@@ -200,6 +225,15 @@ export async function processRefundLog({
         type: GnosisPayTransactionType.Spend,
         transactionHash,
         weekId,
+      },
+      {
+        _id: safeAddress,
+        address: safeAddress,
+        gnoBalance,
+        isOg: safeHasOgNft,
+        owners: safeOwners,
+        netUsdVolume: 0,
+        transactions: [],
       },
       mongooseModels
     );
@@ -253,8 +287,21 @@ async function getBlockByNumber(params: Parameters<typeof getBlockByNumberCore>[
   return block;
 }
 
+async function getGnosisPaySafeOwners(params: Parameters<typeof getGnosisPaySafeOwnersCore>[0]) {
+  const { data: owners } = await getGnosisPaySafeOwnersCore(params);
+
+  if (!owners) {
+    throw new Error(`Owners not found for safe address ${params.safeAddress}`, {
+      cause: 'OWNERS_NOT_FOUND',
+    });
+  }
+
+  return owners;
+}
+
 async function saveToDatabase(
   gnosispayTransactionPayload: GnosisPayTransactionFieldsType_Unpopulated,
+  gnosisPaySafeAddressPayload: GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
   mongooseModels: MongooseConfiguredModels
 ): Promise<ProcessLogFnDataType> {
   const {
@@ -275,7 +322,7 @@ async function saveToDatabase(
   ).save({ session: mongooseSession });
 
   // All spend transactions for the week
-  const allGnosisPayTransactions = [
+  const weekGnosisPayTransactions = [
     gnosisPayTransactionDocument.toJSON(), // we include this manually this since the document hasn't been saved to the database yet
     ...(await gnosisPayTransactionModel
       .find({
@@ -284,8 +331,6 @@ async function saveToDatabase(
       })
       .lean()),
   ];
-
-  createGnosisPaySafeAddressDocument(gnosisPaySafeAddressModel, safeAddress, mongooseSession);
 
   // Update the week cashback reward document
   const weekCashbackRewardOldSnapshot = await createWeekCashbackRewardDocument(
@@ -297,7 +342,7 @@ async function saveToDatabase(
     mongooseSession
   );
 
-  weekCashbackRewardOldSnapshot.netUsdVolume = calculateNetUsdVolume(allGnosisPayTransactions);
+  weekCashbackRewardOldSnapshot.netUsdVolume = calculateNetUsdVolume(weekGnosisPayTransactions);
   // Add the spend transaction to the week cashback reward document
   weekCashbackRewardOldSnapshot.transactions.push(gnosisPayTransactionDocument._id);
 
@@ -308,15 +353,42 @@ async function saveToDatabase(
     weekCashbackRewardOldSnapshot.minGnoBalance = gnoBalance;
   }
 
+  // Calculate the estimated reward for the week
   const estimatedReward = calculateWeekRewardAmount({
     gnoUsdPrice,
-    transactions: allGnosisPayTransactions,
-    isOgNftHolder: false,
+    transactions: weekGnosisPayTransactions,
+    isOgNftHolder: gnosisPaySafeAddressPayload.isOg,
   });
 
   // Calculate the estimated reward for the week
   weekCashbackRewardOldSnapshot.estimatedReward = estimatedReward;
   const weekCashbackRewardNewSnapshot = await weekCashbackRewardOldSnapshot.save({ session: mongooseSession });
+
+  // Create the safe address document
+  {
+    // All GnosisPay transactions for this safe address
+    const allGnosisPayTransactions = [
+      gnosisPayTransactionDocument.toJSON(), // we include this manually this since the document hasn't been saved to the database yet
+      ...(await gnosisPayTransactionModel.find({ safeAddress }).lean()),
+    ];
+
+    const safeAddressOldSnapshot = await createGnosisPaySafeAddressDocument(
+      {
+        safeAddress,
+        isOg: gnosisPaySafeAddressPayload.isOg,
+        owners: gnosisPaySafeAddressPayload.owners,
+      },
+      gnosisPaySafeAddressModel,
+      mongooseSession
+    );
+
+    safeAddressOldSnapshot.transactions.push(gnosisPayTransactionDocument._id);
+    safeAddressOldSnapshot.netUsdVolume = calculateNetUsdVolume(allGnosisPayTransactions);
+    safeAddressOldSnapshot.owners = gnosisPaySafeAddressPayload.owners;
+    safeAddressOldSnapshot.gnoBalance = gnoBalance;
+
+    await safeAddressOldSnapshot.save({ session: mongooseSession });
+  }
 
   // Update the week metrics snapshot
   const weekMetricsOldSnapshot = await createWeekMetricsSnapshotDocument(
