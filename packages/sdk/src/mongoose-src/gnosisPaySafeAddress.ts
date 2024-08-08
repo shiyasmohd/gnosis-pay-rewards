@@ -1,5 +1,5 @@
 import { ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
-import { Address } from 'viem';
+import { Address, isHash } from 'viem';
 import { GnosisPayTransactionFieldsType_Unpopulated } from '../database/spendTransaction';
 import { mongooseSchemaAddressField } from './sharedSchemaFields';
 import { gnosisPayTransactionModelName } from './gnosisPayTransaction';
@@ -43,8 +43,13 @@ const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFields
   },
   transactions: [
     {
-      ...mongooseSchemaAddressField,
       ref: gnosisPayTransactionModelName,
+      type: String,
+      required: true,
+      validate: {
+        validator: (value: string) => isHash(value),
+        message: '{VALUE} is not a valid hash',
+      },
     },
   ],
 });
@@ -64,11 +69,15 @@ export function getGnosisPaySafeAddressModel(mongooseConnection: Mongoose): Gnos
 }
 
 export async function createGnosisPaySafeAddressDocument(
+  payload: {
+    safeAddress: Address;
+    owners: Address[];
+    isOg: boolean;
+  },
   gnosisPaySafeAddressModel: Model<GnosisPaySafeAddressDocumentFieldsType>,
-  safeAddress: Address,
   mongooseSession?: ClientSession
 ): Promise<HydratedDocument<GnosisPaySafeAddressDocumentFieldsType>> {
-  safeAddress = safeAddress.toLowerCase() as Address;
+  const safeAddress = payload.safeAddress.toLowerCase() as Address;
 
   const gnosisPaySafeAddressDocument = await gnosisPaySafeAddressModel.findById(
     safeAddress,
@@ -85,8 +94,8 @@ export async function createGnosisPaySafeAddressDocument(
     address: safeAddress,
     netUsdVolume: 0,
     gnoBalance: 0,
-    owners: [],
-    isOg: false,
+    owners: payload.owners,
+    isOg: payload.isOg,
     transactions: [],
   }).save({ session: mongooseSession });
 }

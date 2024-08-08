@@ -42,8 +42,7 @@
     "prepare": "pnpm clean && pnpm build"
   },
   "dependencies": {
-    "debug": "^4.3.4",
-    "viem": "^2.7.16"
+    "debug": "^4.3.4"
   },
   "devDependencies": {
     "@types/debug": "^4.1.8",
@@ -70,6 +69,7 @@
   "peerDependencies": {
     "socket.io": "^4.7.5",
     "dayjs": "^1.11.7",
-    "mongoose": "^8.5.1"
+    "mongoose": "^8.5.1",
+    "viem": "2.7.16"
   }
 }
