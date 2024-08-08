@@ -28,7 +28,7 @@ import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { atom, createStore } from 'jotai';
 import { IndexerStateAtomType } from './state.js';
 
-const indexBlockSize = 120n; // 12 blocks is roughly 60 seconds of data
+const indexBlockSize = 12n * 5n; // ~5 minutes of logs
 
 export async function startIndexing({
   client,
@@ -161,6 +161,12 @@ export async function startIndexing({
       verbose: true,
       tokenAddresses: gnosisPayTokens.map((token) => token.address),
     });
+
+    try {
+      await logger.logDebug({
+        message: `Found ${spendLogs.length} spend logs and ${refundLogs.length} refund logs`,
+      });
+    } catch (e) {}
 
     await handleBatchLogs({
       client,
