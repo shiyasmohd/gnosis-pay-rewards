@@ -311,6 +311,7 @@ async function saveToDatabase(
     gnosisPaySafeAddressModel,
   } = mongooseModels;
   gnosispayTransactionPayload.safeAddress = gnosispayTransactionPayload.safeAddress.toLowerCase() as Address;
+  gnosispayTransactionPayload.amountToken = gnosispayTransactionPayload.amountToken.toLowerCase() as Address;
   const { weekId, gnoUsdPrice, gnoBalance, safeAddress } = gnosispayTransactionPayload;
 
   // Start a session to ensure atomicity
