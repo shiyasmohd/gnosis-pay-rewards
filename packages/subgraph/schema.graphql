@@ -1,0 +1,77 @@
+type ExampleEntity @entity {
+  id: Bytes!
+  count: BigInt!
+  owner: Bytes! # address
+  spender: Bytes! # address
+}
+
+type Token @entity {
+  id: Bytes!
+  address: Bytes!
+  oracle: Bytes!
+  chainId: Int!
+  name: String!
+  symbol: String!
+  decimals: Int!
+}
+
+enum TransactionType {
+  SPEND
+  REFUND
+}
+
+type GnosisPayTransaction @entity {
+  id: Bytes!
+  safe: GnosisPaySafe!
+  type: TransactionType!
+  "The value of the transaction in the native currency of the chain"
+  token: Token!
+  "Amount of value transferred"
+  value: BigInt!
+  "Amount of value transferred in USD"
+  valueUsd: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  "The amount of GNO tokens that the user has in their wallet at the time of the transaction"
+  estimatedReward: BigInt!
+  "The amount of GNO tokens that the user has in their wallet at the time of the transaction"
+  gnoBalance: BigInt!
+}
+
+type GnosisPaySafeWeekSnapshot @entity {
+  "The id is the week and the safe address in the format of <week>/<safeAddress>"
+  id: String!
+  safe: GnosisPaySafe!
+  week: Int!
+  "The net USD volume for the week"
+  netUsdVolume: BigInt!
+  "The amount of GNO tokens that the safe has in its wallet at the end of the week"
+  gnoBalance: BigInt!
+  "The minimum GNO balance for the week"
+  minGnoBalance: BigInt
+  "The maximum GNO balance for the week"
+  maxGnoBalance: BigInt
+  transactions: [GnosisPayTransaction!]!
+  transactionCount: Int!
+}
+
+type WeekMetrics @entity {
+  id: String!
+  week: Int!
+  "The net USD volume for the week"
+  netUsdVolume: BigInt!
+  "The amount of GNO tokens that the safe has in its wallet at the end of the week"
+  gnoBalance: BigInt!
+  "The minimum GNO balance for the week"
+  minGnoBalance: BigInt
+  "The maximum GNO balance for the week"
+  maxGnoBalance: BigInt
+  transactionCount: Int!
+}
+
+type GnosisPaySafe @entity {
+  id: Bytes!
+  address: Bytes!
+  owner: [Bytes!]!
+  transactions: [GnosisPayTransaction!]! @derivedFrom(field: "safe")
+}
