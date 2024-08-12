@@ -48,11 +48,13 @@ export function calculateWeekRewardAmount({
   if (gnoBalance >= 100) {
     rewardPercentage = 4;
   } else if (gnoBalance >= 10) {
-    rewardPercentage = 3;
+    rewardPercentage = 3 + (gnoBalance - 10) / 90;
   } else if (gnoBalance >= 1) {
-    rewardPercentage = 2;
+    rewardPercentage = 2 + (gnoBalance - 1) / 9;
   } else if (gnoBalance >= 0.1) {
-    rewardPercentage = 1;
+    rewardPercentage = 1 + (gnoBalance - 0.1) / 0.9;
+  } else {
+    rewardPercentage = 0; // Not eligible for rewards
   }
 
   // Add OG GP NFT holder boost if applicable
