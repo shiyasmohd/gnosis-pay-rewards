@@ -28,15 +28,13 @@ export function addHttpRoutes({
   getIndexerState: () => IndexerStateAtomType;
 }) {
   expressApp.get<'/status'>('/status', (_, res) => {
-    const { fromBlockNumber, toBlockNumber, latestBlockNumber } = getIndexerState();
+    const state = getIndexerState();
 
     return res.send({
       data: {
-        indexerState: {
-          fromBlockNumber: Number(fromBlockNumber),
-          toBlockNumber: Number(toBlockNumber),
-          latestBlockNumber: Number(latestBlockNumber),
-        },
+        indexerState: Object.fromEntries(
+          Object.entries(state).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value])
+        ),
       },
       status: 'ok',
       statusCode: 200,

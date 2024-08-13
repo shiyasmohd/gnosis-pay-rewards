@@ -65,3 +65,8 @@ export const WEBSOCKET_JSON_RPC_PROVIDER_GNOSIS = env.WEBSOCKET_JSON_RPC_PROVIDE
  * Whether to resume indexing from the last block or start from the beginning
  */
 export const RESUME_INDEXING = env.RESUME_INDEXING === 'true' ? true : false;
+
+/**
+ * The block size to index in one go, defaults to 5 minutes
+ */
+export const FETCH_BLOCK_SIZE = env.FETCH_BLOCK_SIZE ? BigInt(env.FETCH_BLOCK_SIZE) : 12n * 5n;

@@ -28,11 +28,10 @@ import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { atom, createStore } from 'jotai';
 import { IndexerStateAtomType } from './state.js';
 
-const indexBlockSize = 12n * 5n; // ~5 minutes of logs
-
 export async function startIndexing({
   client,
   resumeIndexing = false,
+  fetchBlockSize = 12n * 5n,
 }: {
   client: PublicClient<Transport, typeof gnosis>;
   /**
@@ -40,7 +39,8 @@ export async function startIndexing({
    * If the database is empty, the indexer will start indexing from the Gnosis Pay start block.
    * See {@link gnosisPayStartBlock} for the start block.
    */
-  resumeIndexing?: boolean;
+  readonly resumeIndexing?: boolean;
+  readonly fetchBlockSize?: bigint;
 }) {
   // Connect to the database
   const mongooseConnection = await createConnection(MONGODB_URI);
@@ -67,9 +67,10 @@ export async function startIndexing({
   const latestBlockInitial = await client.getBlock({ includeTransactions: false });
   // default value is June 29th, 2024. Otherwise, we fetch the latest block from the indexed pending rewards
   const fromBlockNumberInitial = gnosisPayStartBlock;
-  const toBlockNumberInitial = clampToBlockRange(fromBlockNumberInitial, latestBlockInitial.number, indexBlockSize);
+  const toBlockNumberInitial = clampToBlockRange(fromBlockNumberInitial, latestBlockInitial.number, fetchBlockSize);
 
   const indexerStateAtom = atom<IndexerStateAtomType>({
+    fetchBlockSize,
     latestBlockNumber: latestBlockInitial.number,
     fromBlockNumber: fromBlockNumberInitial,
     toBlockNumber: toBlockNumberInitial,
@@ -84,7 +85,7 @@ export async function startIndexing({
       .limit(1);
 
     if (latestGnosisPayTransaction !== undefined) {
-      const fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - indexBlockSize;
+      const fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - fetchBlockSize;
       indexerStateStore.set(indexerStateAtom, (prev) => ({
         ...prev,
         fromBlockNumber,
@@ -182,8 +183,8 @@ export async function startIndexing({
     });
 
     // Move to the next block range
-    const nextFromBlockNumber = fromBlockNumber + indexBlockSize;
-    const nextToBlockNumber = clampToBlockRange(nextFromBlockNumber, latestBlockNumber, indexBlockSize);
+    const nextFromBlockNumber = fromBlockNumber + fetchBlockSize;
+    const nextToBlockNumber = clampToBlockRange(nextFromBlockNumber, latestBlockNumber, fetchBlockSize);
 
     indexerStateStore.set(indexerStateAtom, (prev) => ({
       ...prev,
@@ -197,7 +198,7 @@ export async function startIndexing({
 
     // Cooldown for 20 seconds if we're within a distance of 10 blocks
     if (distanceToLatestBlock < 10n) {
-      const targetBlockNumber = toBlockNumber + indexBlockSize + 3n;
+      const targetBlockNumber = toBlockNumber + fetchBlockSize + 3n;
 
       console.log(`Waiting for #${targetBlockNumber}`);
 
