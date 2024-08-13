@@ -18,6 +18,7 @@ import {
   createWeekMetricsSnapshotDocument,
   GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
   createGnosisPaySafeAddressDocument,
+  toDocumentId,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Model } from 'mongoose';
 import { PublicClient, Transport, formatUnits, Address } from 'viem';
@@ -30,6 +31,10 @@ import { getGnoTokenBalance } from './getGnoTokenBalance.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
 import { getGnosisPaySafeOwners as getGnosisPaySafeOwnersCore } from './gp/getGnosisPaySafeOwners.js';
+import dayjs from 'dayjs';
+import dayjsUtcPlugin from 'dayjs/plugin/utc.js';
+
+dayjs.extend(dayjsUtcPlugin);
 
 type MongooseConfiguredModels = {
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
@@ -322,17 +327,6 @@ async function saveToDatabase(
     gnosispayTransactionPayload
   ).save({ session: mongooseSession });
 
-  // All spend transactions for the week
-  const weekGnosisPayTransactions = [
-    gnosisPayTransactionDocument.toJSON(), // we include this manually this since the document hasn't been saved to the database yet
-    ...(await gnosisPayTransactionModel
-      .find({
-        weekId,
-        safeAddress,
-      })
-      .lean()),
-  ];
-
   // Update the week cashback reward document
   const weekCashbackRewardOldSnapshot = await createWeekCashbackRewardDocument(
     {
@@ -343,7 +337,28 @@ async function saveToDatabase(
     mongooseSession
   );
 
-  weekCashbackRewardOldSnapshot.netUsdVolume = calculateNetUsdVolume(weekGnosisPayTransactions);
+  // Check if this is the first transaction for the week
+  // If it is, we need to check if the previous week cashback net volume is in the negative
+  // if it is negative, we need to carry the negative volume over to the new week and offset the positive volume
+  if (weekCashbackRewardOldSnapshot.transactions.length === 0) {
+    const prevWeekId = toWeekDataId(dayjs(weekId).subtract(1, 'week').unix());
+    const prevDocumentId = toDocumentId(prevWeekId, safeAddress);
+    const previousWeekCashbackReward = await weekCashbackRewardModel.findById(prevDocumentId);
+
+    // Take the previous week's net volume and add it to the current week's net volume
+    if (previousWeekCashbackReward !== null && previousWeekCashbackReward.netUsdVolume < 0) {
+      weekCashbackRewardOldSnapshot.netUsdVolume =
+        previousWeekCashbackReward.netUsdVolume + gnosisPayTransactionDocument.amountUsd;
+    }
+  } else {
+    const prevNetUsdVolume = weekCashbackRewardOldSnapshot.netUsdVolume;
+
+    weekCashbackRewardOldSnapshot.netUsdVolume =
+      gnosisPayTransactionDocument.type === GnosisPayTransactionType.Spend
+        ? prevNetUsdVolume + gnosisPayTransactionDocument.amountUsd
+        : prevNetUsdVolume - gnosisPayTransactionDocument.amountUsd;
+  }
+
   // Add the spend transaction to the week cashback reward document
   weekCashbackRewardOldSnapshot.transactions.push(gnosisPayTransactionDocument._id);
 
@@ -357,7 +372,8 @@ async function saveToDatabase(
   // Calculate the estimated reward for the week
   const estimatedReward = calculateWeekRewardAmount({
     gnoUsdPrice,
-    transactions: weekGnosisPayTransactions,
+    netUsdVolume: weekCashbackRewardOldSnapshot.netUsdVolume,
+    gnoBalance,
     isOgNftHolder: gnosisPaySafeAddressPayload.isOg,
   });
 
