@@ -18,9 +18,9 @@
   "license": "ISC",
   "dependencies": {
     "@karpatkey/gnosis-pay-rewards-sdk": "workspace:*",
-    "@sentry/node": "^7.102.1",
-    "@sentry/profiling-node": "^7.102.1",
-    "@sentry/tracing": "^7.102.1",
+    "@sentry/node": "^8.25.0",
+    "@sentry/profiling-node": "^8.25.0",
+    "@sentry/tracing": "^7.114.0",
     "@types/ws": "^8.5.10",
     "@wagmi/core": "^0.8.5",
     "axios": "^0.27.2",
