@@ -85,10 +85,13 @@ export async function startIndexing({
       .limit(1);
 
     if (latestGnosisPayTransaction !== undefined) {
-      const fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - fetchBlockSize;
+      const fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - 1n;
+      const toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlockInitial.number, fetchBlockSize);
+
       indexerStateStore.set(indexerStateAtom, (prev) => ({
         ...prev,
         fromBlockNumber,
+        toBlockNumber,
       }));
       console.log(`Resuming indexing from #${fromBlockNumber}`);
     } else {
