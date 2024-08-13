@@ -1,6 +1,3 @@
-import { GnosisPayTransactionFieldsType_Unpopulated } from './database/spendTransaction';
-import { calculateNetUsdVolume } from './database/utils';
-
 type CalculateWeekRewardCommonParams = {
   /**
    * The GNO USD price reference to use when calculating rewards
@@ -12,34 +9,26 @@ type CalculateWeekRewardCommonParams = {
    */
   isOgNftHolder: boolean;
   /**
-   * The transactions to calculate the rewards for
+   * The net USD volume for the week
    */
-  transactions: GnosisPayTransactionFieldsType_Unpopulated[];
+  netUsdVolume: number;
+  /**
+   * The GNO balance for the week
+   */
+  gnoBalance: number;
 };
 
 /**
- * Calculate the rewards for a given week with a list of transactions.
- * Requires a list of transactions to calculate the rewards for and calculates the net USD volume for the week.
- *
- * The GNO balance is the lowest GNO balance among the transactions.
- *
+ * Calculate the rewards for a given week given the net USD volume and GNO balance.
  * Negative USD volumes are ignored as they don't contribute to the rewards.
  */
 export function calculateWeekRewardAmount({
   gnoUsdPrice,
   isOgNftHolder,
-  transactions,
+  netUsdVolume,
+  gnoBalance,
 }: CalculateWeekRewardCommonParams) {
-  const netUsdVolume = calculateNetUsdVolume(transactions);
-
-  if (netUsdVolume <= 0) {
-    return 0;
-  }
-
-  // To get the week's GNO balance, we find the lowest GNO balance among the transactions
-  const gnoBalance = Math.min(...transactions.map((transaction) => transaction.gnoBalance));
-
-  if (gnoBalance === 0) {
+  if (netUsdVolume <= 0 || gnoBalance === 0) {
     return 0;
   }
 
