@@ -375,8 +375,12 @@ async function saveToDatabase(
 
     // Take the previous week's net volume and add it to the current week's net volume
     if (previousWeekCashbackReward !== null && previousWeekCashbackReward.netUsdVolume < 0) {
+      const prevNetUsdVolume = previousWeekCashbackReward.netUsdVolume;
+
       weekCashbackRewardOldSnapshot.netUsdVolume =
-        previousWeekCashbackReward.netUsdVolume + gnosisPayTransactionDocument.amountUsd;
+        gnosisPayTransactionDocument.type === GnosisPayTransactionType.Spend
+          ? prevNetUsdVolume + gnosisPayTransactionDocument.amountUsd
+          : prevNetUsdVolume - gnosisPayTransactionDocument.amountUsd;
     }
   } else {
     const prevNetUsdVolume = weekCashbackRewardOldSnapshot.netUsdVolume;
