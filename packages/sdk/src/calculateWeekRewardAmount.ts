@@ -27,7 +27,11 @@ export function calculateWeekRewardAmount({
   isOgNftHolder,
   netUsdVolume,
   gnoBalance,
-}: CalculateWeekRewardCommonParams) {
+}: CalculateWeekRewardCommonParams): number {
+  if (gnoUsdPrice <= 0) {
+    throw new Error('gnoUsdPrice must be greater than 0');
+  }
+
   if (netUsdVolume <= 0 || gnoBalance === 0) {
     return 0;
   }
