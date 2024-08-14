@@ -26,8 +26,6 @@ export async function createConnection(
   }
   if (!cached.promise) {
     cached.promise = mongoose.connect(connectionString, opts).then((mongoose) => {
-      mongoose.set('debug', true);
-
       return mongoose;
     });
   }
