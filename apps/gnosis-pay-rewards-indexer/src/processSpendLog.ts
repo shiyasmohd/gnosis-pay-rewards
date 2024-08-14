@@ -11,6 +11,8 @@ import {
   WeekCashbackRewardDocumentFieldsType_Populated,
   ConditionalReturnType,
   calculateWeekRewardAmount,
+  usdcBridgeToken,
+  circleUsdcToken,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   WeekCashbackRewardModelType,
@@ -21,7 +23,7 @@ import {
   toDocumentId,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Model } from 'mongoose';
-import { PublicClient, Transport, formatUnits, Address } from 'viem';
+import { PublicClient, Transport, formatUnits, Address, isAddressEqual } from 'viem';
 import { gnosis } from 'viem/chains';
 import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
 
@@ -97,13 +99,13 @@ export async function processSpendLog({
       client,
     });
 
-    const latestRoundDataAtBlock = await getOraclePriceAtBlockNumber({
+    const tokenUsdPrice = await getTokenUsdPrice({
       blockNumber,
       client,
-      token: spentTokenAddress,
+      token: spentToken.address,
     });
 
-    const gnoTokenPriceDataAtBlock = await getOraclePriceAtBlockNumber({
+    const gnoUsdPrice = await getTokenUsdPrice({
       blockNumber,
       client,
       token: gnoToken.address,
@@ -111,9 +113,8 @@ export async function processSpendLog({
 
     const weekId = toWeekDataId(Number(block.timestamp));
     const amount = Number(formatUnits(spendAmountRaw, spentToken.decimals));
-    const amountUsd = latestRoundDataAtBlock.data?.price ? amount * latestRoundDataAtBlock.data.price : 0;
+    const amountUsd = tokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
-    const gnoUsdPrice = gnoTokenPriceDataAtBlock.data?.price ?? 0;
 
     const savedData = await saveToDatabase(
       {
@@ -195,13 +196,13 @@ export async function processRefundLog({
       client,
     });
 
-    const latestRoundDataAtBlock = await getOraclePriceAtBlockNumber({
+    const tokenUsdPrice = await getTokenUsdPrice({
       blockNumber,
       client,
-      token: amountTokenAddress,
+      token: spentToken.address,
     });
 
-    const gnoTokenPriceDataAtBlock = await getOraclePriceAtBlockNumber({
+    const gnoUsdPrice = await getTokenUsdPrice({
       blockNumber,
       client,
       token: gnoToken.address,
@@ -209,8 +210,7 @@ export async function processRefundLog({
 
     const weekId = toWeekDataId(Number(block.timestamp));
     const amount = Number(formatUnits(amountRaw, spentToken.decimals));
-    const gnoUsdPrice = gnoTokenPriceDataAtBlock.data?.price ?? 0;
-    const amountUsd = latestRoundDataAtBlock.data?.price ? amount * latestRoundDataAtBlock.data.price : 0;
+    const amountUsd = tokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
 
     const savedData = await saveToDatabase(
@@ -302,6 +302,34 @@ async function getGnosisPaySafeOwners(params: Parameters<typeof getGnosisPaySafe
   }
 
   return owners;
+}
+
+async function getTokenUsdPrice(
+  params: { token: Address } & Omit<Parameters<typeof getOraclePriceAtBlockNumber>[0], 'oracle'>
+) {
+  if (isAddressEqual(params.token, usdcBridgeToken.address) || isAddressEqual(params.token, circleUsdcToken.address)) {
+    return 1;
+  }
+
+  // Custom finder for gno token
+  const tokenInfo = isAddressEqual(params.token, gnoToken.address)
+    ? gnoToken
+    : getGnosisPayTokenByAddress(params.token);
+
+  if (!tokenInfo?.oracle) {
+    throw new Error(`Token (${params.token}) either not found or not registered as GP token`);
+  }
+
+  const { data, error } = await getOraclePriceAtBlockNumber({
+    ...params,
+    oracle: tokenInfo.oracle,
+  });
+
+  if (!data) {
+    throw error;
+  }
+
+  return data.price;
 }
 
 async function saveToDatabase(

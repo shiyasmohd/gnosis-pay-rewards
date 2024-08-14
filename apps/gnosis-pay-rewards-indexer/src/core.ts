@@ -85,7 +85,7 @@ export async function startIndexing({
       .limit(1);
 
     if (latestGnosisPayTransaction !== undefined) {
-      const fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - 1n;
+      const fromBlockNumber = 34778838n; // BigInt(latestGnosisPayTransaction.blockNumber) - 1n;
       const toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlockInitial.number, fetchBlockSize);
 
       indexerStateStore.set(indexerStateAtom, (prev) => ({
@@ -146,8 +146,10 @@ export async function startIndexing({
     const { fromBlockNumber, toBlockNumber, latestBlockNumber } = getIndexerState();
 
     try {
+      const message = `Fetching logs from #${fromBlockNumber} to #${toBlockNumber}`;
+      console.log(message);
       await logger.logDebug({
-        message: `Fetching logs from #${fromBlockNumber} to #${toBlockNumber}`,
+        message,
       });
     } catch (e) {}
 
@@ -167,8 +169,12 @@ export async function startIndexing({
     });
 
     try {
+      const message = `Found ${spendLogs.length} spend logs and ${refundLogs.length} refund logs`;
+
+      console.log(message);
+
       await logger.logDebug({
-        message: `Found ${spendLogs.length} spend logs and ${refundLogs.length} refund logs`,
+        message,
       });
     } catch (e) {}
 
@@ -197,16 +203,17 @@ export async function startIndexing({
 
     // Sanity check to make sure we're not going too fast
     const distanceToLatestBlock = bigMath.abs(nextToBlockNumber - latestBlockNumber);
-    console.log({ distanceToLatestBlock });
 
     // Cooldown for 20 seconds if we're within a distance of 10 blocks
     if (distanceToLatestBlock < 10n) {
       const targetBlockNumber = toBlockNumber + fetchBlockSize + 3n;
 
-      console.log(`Waiting for #${targetBlockNumber}`);
+      const message = `Waiting for #${targetBlockNumber} to continue indexing`;
+
+      console.log(message);
 
       await logger.logDebug({
-        message: `Waiting for #${targetBlockNumber} to continue indexing`,
+        message,
       });
 
       await waitForBlock({
@@ -277,7 +284,9 @@ async function handleBatchLogs({
     } catch (e) {
       const error = e as Error;
 
-      console.error(error);
+      if (error.cause !== 'LOG_ALREADY_PROCESSED') {
+        console.error(error);
+      }
 
       logger.log({
         level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
