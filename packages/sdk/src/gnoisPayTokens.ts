@@ -1,4 +1,4 @@
-import { Address, isAddressEqual } from 'viem';
+import { Address, isAddressEqual, zeroAddress } from 'viem';
 
 export type SerializableErc20TokenType = {
   address: Address;
@@ -18,40 +18,48 @@ export const gnoToken: SerializableErc20TokenType = {
   oracle: '0x22441d81416430A54336aB28765abd31a792Ad37',
 } as const;
 
+export const circleUsdcToken: SerializableErc20TokenType = {
+  symbol: 'USDC',
+  address: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83',
+  decimals: 6,
+  name: 'USDC',
+  chainId: 100,
+};
+
+export const moneriumEureToken: SerializableErc20TokenType = {
+  symbol: 'EURe',
+  address: '0xcB444e90D8198415266c6a2724b7900fb12FC56E',
+  decimals: 18,
+  name: 'Monerium EUR emoney (EURe)',
+  chainId: 100,
+  oracle: '0xab70BCB260073d036d1660201e9d5405F5829b7a',
+};
+
+export const moneriumGbpToken: SerializableErc20TokenType = {
+  symbol: 'GBPe',
+  address: '0x5Cb9073902F2035222B9749F8fB0c9BFe5527108',
+  decimals: 18,
+  name: 'Monerium GBP emoney (GBPe)',
+  chainId: 100,
+  oracle: '0x0E418d54863a3fAfeC9e96a358795f0f236f5f66',
+};
+
+export const usdcBridgeToken: SerializableErc20TokenType = {
+  symbol: 'USDC.e',
+  address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  decimals: 6,
+  name: 'Bridged USDC (Gnosis)',
+  chainId: 1,
+};
+
 /**
  * List of token used to process payments in Gnosis Pay as of July 1, 2024
  */
 export const gnosisPayTokens: SerializableErc20TokenType[] = [
-  {
-    symbol: 'EURe',
-    address: '0xcB444e90D8198415266c6a2724b7900fb12FC56E',
-    decimals: 18,
-    name: 'Monerium EUR emoney (EURe)',
-    chainId: 100,
-    oracle: '0xab70BCB260073d036d1660201e9d5405F5829b7a',
-  },
-  {
-    symbol: 'GBPe',
-    address: '0x5Cb9073902F2035222B9749F8fB0c9BFe5527108',
-    decimals: 18,
-    name: 'Monerium GBP emoney (GBPe)',
-    chainId: 100,
-    oracle: '0x0E418d54863a3fAfeC9e96a358795f0f236f5f66',
-  },
-  {
-    symbol: 'USDC.e',
-    address: '0x2a22f9c3b484c3629090FeED35F17Ff8F88f76F0',
-    decimals: 6,
-    name: 'Bridged USDC (Gnosis)',
-    chainId: 100,
-  },
-  {
-    symbol: 'USDC',
-    address: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83',
-    decimals: 6,
-    name: 'USDC',
-    chainId: 100,
-  },
+  circleUsdcToken,
+  moneriumEureToken,
+  moneriumGbpToken,
+  usdcBridgeToken,
 ] as const;
 
 export function getGnosisPayTokenByAddress(tokenAddress: Address) {

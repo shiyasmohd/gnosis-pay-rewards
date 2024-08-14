@@ -1,6 +1,14 @@
-import { Address, PublicClient, Transport, formatUnits, getContract } from 'viem';
+import {
+  Address,
+  PublicClient,
+  Transport,
+  formatUnits,
+  getContract,
+  isAddress,
+  isAddressEqual,
+  zeroAddress,
+} from 'viem';
 import { gnosis } from 'viem/chains';
-import { getGnosisPayTokenByAddress } from './gnoisPayTokens';
 
 type ConditionalReturnType<T extends boolean, A, B> = T extends true
   ? { data: A; error: null }
@@ -21,34 +29,32 @@ type TokenOraclePriceDataType = {
 export async function getOraclePriceAtBlockNumber({
   client,
   blockNumber,
-  token,
+  oracle,
 }: {
   client: PublicClient<Transport, typeof gnosis>;
   blockNumber: bigint;
-  token: Address;
+  oracle: Address;
 }): Promise<ConditionalReturnType<true, TokenOraclePriceDataType, Error> | ConditionalReturnType<false, null, Error>> {
   try {
-    const tokenInfo = getGnosisPayTokenByAddress(token);
-
-    if (!tokenInfo) {
-      throw new Error('Token does not exist in SDK');
+    if (!isAddress(oracle)) {
+      throw new Error('Oracle address is not valid');
     }
 
-    if (!tokenInfo.oracle) {
-      throw new Error(`Token (${tokenInfo.symbol}) has no oracle`);
+    if (isAddressEqual(oracle, zeroAddress)) {
+      throw new Error('Oracle address is zero');
     }
 
-    const contract = getContract({
+    const oracleContract = getContract({
       abi: chornicleOracleAbi,
-      address: tokenInfo.oracle,
+      address: oracle,
       client,
     });
 
-    const [roundId, answer, startedAt, updatedAt, answeredInRound] = await contract.read.latestRoundData({
+    const [roundId, answer, startedAt, updatedAt, answeredInRound] = await oracleContract.read.latestRoundData({
       blockNumber,
     });
 
-    const decimals = await contract.read.decimals();
+    const decimals = await oracleContract.read.decimals();
     const price = Number(formatUnits(answer, decimals));
 
     return {
