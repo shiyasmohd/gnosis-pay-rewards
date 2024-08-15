@@ -52,6 +52,7 @@ export async function getOraclePriceAtBlockNumber({
 
     const [roundId, answer, startedAt, updatedAt, answeredInRound] = await oracleContract.read.latestRoundData({
       blockNumber,
+      account: zeroAddress,
     });
 
     const decimals = await oracleContract.read.decimals();
