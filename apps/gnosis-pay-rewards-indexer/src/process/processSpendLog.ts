@@ -7,15 +7,12 @@ import {
   GnosisPayTransactionFieldsType_Unpopulated,
   GnosisPayTransactionType,
   calculateNetUsdVolume,
-  WeekSnapshotDocumentFieldsType,
-  WeekCashbackRewardDocumentFieldsType_Populated,
   ConditionalReturnType,
   calculateWeekRewardAmount,
   usdcBridgeToken,
   circleUsdcToken,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
-  WeekCashbackRewardModelType,
   createWeekCashbackRewardDocument,
   createWeekMetricsSnapshotDocument,
   GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
@@ -23,45 +20,26 @@ import {
   toDocumentId,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Model } from 'mongoose';
-import { PublicClient, Transport, formatUnits, Address, isAddressEqual } from 'viem';
-import { gnosis } from 'viem/chains';
-import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
+import { formatUnits, Address, isAddressEqual } from 'viem';
+import { getGnosisPaySpendLogs } from '../gp/getGnosisPaySpendLogs.js';
 
-import { getBlockByNumber as getBlockByNumberCore } from './getBlockByNumber.js';
-import { getGnosisPaySafeAddressFromModule } from './gp/getGnosisPaySafeAddressFromModule.js';
-import { getGnoTokenBalance } from './getGnoTokenBalance.js';
-import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
-import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
-import { getGnosisPaySafeOwners as getGnosisPaySafeOwnersCore } from './gp/getGnosisPaySafeOwners.js';
+import { getBlockByNumber as getBlockByNumberCore } from '../getBlockByNumber.js';
+import { getGnosisPaySafeAddressFromModule } from '../gp/getGnosisPaySafeAddressFromModule.js';
+import { getGnoTokenBalance } from '../getGnoTokenBalance.js';
+import { getGnosisPayRefundLogs } from '../gp/getGnosisPayRefundLogs.js';
+import { hasGnosisPayOgNft } from '../gp/hasGnosisPayOgNft.js';
+import { getGnosisPaySafeOwners as getGnosisPaySafeOwnersCore } from '../gp/getGnosisPaySafeOwners.js';
 import dayjs from 'dayjs';
 import dayjsUtcPlugin from 'dayjs/plugin/utc.js';
+import { MongooseConfiguredModels, ProcessLogFnDataType, ProcessLogFunctionParams } from './types.js';
 
 dayjs.extend(dayjsUtcPlugin);
-
-type MongooseConfiguredModels = {
-  gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>;
-  gnosisPaySafeAddressModel: Model<GnosisPaySafeAddressDocumentFieldsType_Unpopulated>;
-  weekCashbackRewardModel: WeekCashbackRewardModelType;
-  weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>;
-};
-
-type ProcessLogFnParams<LogType extends Record<string, unknown>> = {
-  client: PublicClient<Transport, typeof gnosis>;
-  log: LogType;
-  mongooseModels: MongooseConfiguredModels;
-};
-
-type ProcessLogFnDataType = {
-  gnosisPayTransaction: GnosisPayTransactionFieldsType_Populated;
-  weekCashbackReward: WeekCashbackRewardDocumentFieldsType_Populated;
-  weekMetricsSnapshot: WeekSnapshotDocumentFieldsType;
-};
 
 export async function processSpendLog({
   client,
   log,
   mongooseModels,
-}: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[number]>): Promise<
+}: ProcessLogFunctionParams<Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[number]>): Promise<
   ConditionalReturnType<true, ProcessLogFnDataType, Error> | ConditionalReturnType<false, ProcessLogFnDataType, Error>
 > {
   try {
@@ -162,9 +140,7 @@ export async function processRefundLog({
   client,
   log,
   mongooseModels,
-}: ProcessLogFnParams<Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[number]> & {
-  mongooseModels: MongooseConfiguredModels;
-}) {
+}: ProcessLogFunctionParams<Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[number]>) {
   try {
     await validateLogIsNotAlreadyProcessed(mongooseModels.gnosisPayTransactionModel, log.transactionHash);
 

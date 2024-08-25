@@ -11,7 +11,9 @@ import {
   getGnosisPaySafeAddressModel,
   getWeekCashbackRewardModel,
   LogLevel,
+  createGnosisTokenBalanceSnapshotModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
+import { atom, createStore } from 'jotai';
 import { PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
 
@@ -23,10 +25,11 @@ import { waitForBlock } from './waitForBlock.js';
 
 import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
-import { processRefundLog, processSpendLog } from './processSpendLog.js';
-import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
-import { atom, createStore } from 'jotai';
 import { IndexerStateAtomType } from './state.js';
+import { processRefundLog, processSpendLog } from './process/processSpendLog.js';
+import { processGnosisTokenTransferLog } from './process/processGnosisTokenTransferLog.js';
+import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
+import { getGnosisTokenTransferLogs } from './gp/getGnosisTokenTransferLogs.js';
 
 export async function startIndexing({
   client,
@@ -57,6 +60,7 @@ export async function startIndexing({
     gnosisPayTokenModel: getTokenModel(mongooseConnection),
     loggerModel: getLoggerModel(mongooseConnection),
     blockModel: getBlockModel(mongooseConnection),
+    gnosisTokenBalanceSnapshotModel: createGnosisTokenBalanceSnapshotModel(mongooseConnection),
   };
 
   const logger = createMongooseLogger(mongooseModels.loggerModel);
@@ -168,6 +172,13 @@ export async function startIndexing({
       tokenAddresses: gnosisPayTokens.map((token) => token.address),
     });
 
+    const gnosisTokenTransferLogs = await getGnosisTokenTransferLogs({
+      client,
+      fromBlock: fromBlockNumber,
+      toBlock: toBlockNumber,
+      verbose: true,
+    });
+
     try {
       const message = `Found ${spendLogs.length} spend logs and ${refundLogs.length} refund logs`;
 
@@ -187,6 +198,17 @@ export async function startIndexing({
         gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
       },
       logs: [...spendLogs, ...refundLogs],
+      logger,
+      socketIoServer,
+    });
+
+    await handleGnosisTokenTransferLogs({
+      client,
+      mongooseModels: {
+        gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
+        gnosisTokenBalanceSnapshotModel: mongooseModels.gnosisTokenBalanceSnapshotModel,
+      },
+      logs: gnosisTokenTransferLogs,
       logger,
       socketIoServer,
     });
@@ -280,6 +302,48 @@ async function handleBatchLogs({
           socketIoServer.emit('newTransaction', data.gnosisPayTransaction);
           socketIoServer.emit('currentWeekMetricsSnapshotUpdated', data.weekMetricsSnapshot);
         }
+      }
+    } catch (e) {
+      const error = e as Error;
+
+      if (error.cause !== 'LOG_ALREADY_PROCESSED') {
+        console.error(error);
+      }
+
+      logger.log({
+        level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
+        message: `Error processing ${log.eventName} log (${log.transactionHash}) at #${log.blockNumber} with error: ${error.message}`,
+        metadata: {
+          originalError: error.message,
+          log,
+        },
+      });
+    }
+  }
+}
+
+async function handleGnosisTokenTransferLogs({
+  client,
+  mongooseModels,
+  logger,
+  logs,
+}: {
+  logs: Awaited<ReturnType<typeof getGnosisTokenTransferLogs>>;
+  client: PublicClient<Transport, typeof gnosis>;
+  mongooseModels: Parameters<typeof processGnosisTokenTransferLog>[0]['mongooseModels'];
+  logger: ReturnType<typeof createMongooseLogger>;
+  socketIoServer: ReturnType<typeof buildSocketIoServer>;
+}) {
+  for (const log of logs) {
+    try {
+      const { error } = await processGnosisTokenTransferLog({
+        client,
+        log,
+        mongooseModels,
+      });
+
+      if (error) {
+        throw error;
       }
     } catch (e) {
       const error = e as Error;
