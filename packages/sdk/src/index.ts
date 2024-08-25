@@ -8,5 +8,6 @@ export * from './database/spendTransaction';
 export * from './database/utils';
 export * from './database/weekData';
 export * from './database/weekReward';
+export * from './database/gnosisTokenBalanceSnapshot';
 export * from './socket';
 export * from './oracle';

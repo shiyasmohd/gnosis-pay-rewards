@@ -7,3 +7,4 @@ export * from './mongoose-src/logger';
 export * from './mongoose-src/sharedSchemaFields';
 export * from './mongoose-src/weekCashbackReward';
 export * from './mongoose-src/weekMetricsSnapshot';
+export * from './mongoose-src/gnosisTokenBalanceSnapshot';

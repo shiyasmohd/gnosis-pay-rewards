@@ -3,6 +3,7 @@ import { Address, isHash } from 'viem';
 import { GnosisPayTransactionFieldsType_Unpopulated } from '../database/spendTransaction';
 import { mongooseSchemaAddressField } from './sharedSchemaFields';
 import { gnosisPayTransactionModelName } from './gnosisPayTransaction';
+import { gnosisTokenBalanceSnapshotModelName } from './gnosisTokenBalanceSnapshot';
 
 export const gnosisPaySafeAddressModelName = 'GnosisPaySafeAddress' as const;
 
@@ -17,6 +18,7 @@ type GnosisPaySafeAddressDocumentFieldsType = {
    */
   isOg: boolean;
   transactions: string[];
+  gnoBalanceSnapshots: string[];
 };
 
 export type GnosisPaySafeAddressDocumentFieldsType_Unpopulated = GnosisPaySafeAddressDocumentFieldsType;
@@ -50,6 +52,13 @@ const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFields
         validator: (value: string) => isHash(value),
         message: '{VALUE} is not a valid hash',
       },
+    },
+  ],
+  gnoBalanceSnapshots: [
+    {
+      ref: gnosisTokenBalanceSnapshotModelName,
+      type: String,
+      required: true,
     },
   ],
 });
@@ -97,5 +106,6 @@ export async function createGnosisPaySafeAddressDocument(
     owners: payload.owners,
     isOg: payload.isOg,
     transactions: [],
+    gnoBalanceSnapshots: [],
   }).save({ session: mongooseSession });
 }
