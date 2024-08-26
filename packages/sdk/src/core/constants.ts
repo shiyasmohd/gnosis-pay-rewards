@@ -19,7 +19,7 @@ export const gnoTokenAddress = '0x9c58bacc331c9aa871afd802db6379a98e80cedb' as c
 
 /**
  * Gnosis Pay start block, use this for indexing Gnosis Pay events.
- * This block https://gnosisscan.io/block/34707000
- * Jun-29-2024 06:55:55 AM +UTC
+ * This block https://gnosisscan.io/block/35652320
+ * Aug-25-2024 12:00:40 AM +UTC
  */
-export const gnosisPayStartBlock = 34_707_000n;
+export const gnosisPayStartBlock = 35_652_320n;
