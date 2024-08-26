@@ -1,3 +1,9 @@
+/**
+ * The month-to-date USD volume threshold, over which the user is no
+ * longer eligible for the GNO rewards.
+ */
+const MONTH_TO_DATE_USD_VOLUME_THRESHOLD = 20_000;
+
 type CalculateWeekRewardCommonParams = {
   /**
    * The GNO USD price reference to use when calculating rewards
@@ -16,6 +22,10 @@ type CalculateWeekRewardCommonParams = {
    * The GNO balance for the week
    */
   gnoBalance: number;
+  /**
+   * Month-to-date USD volume
+   */
+  monthToDateUsdVolume: number;
 };
 
 /**
@@ -27,9 +37,15 @@ export function calculateWeekRewardAmount({
   isOgNftHolder,
   netUsdVolume,
   gnoBalance,
+  monthToDateUsdVolume,
 }: CalculateWeekRewardCommonParams): number {
   if (gnoUsdPrice <= 0) {
     throw new Error('gnoUsdPrice must be greater than 0');
+  }
+
+  // If the month-to-date USD volume is greater than the threshold, the user is eligible for the OG NFT holder reward
+  if (monthToDateUsdVolume >= MONTH_TO_DATE_USD_VOLUME_THRESHOLD) {
+    return 0;
   }
 
   if (netUsdVolume <= 0 || gnoBalance === 0) {
