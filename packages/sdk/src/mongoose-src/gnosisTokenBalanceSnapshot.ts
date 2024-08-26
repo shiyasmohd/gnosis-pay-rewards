@@ -17,6 +17,8 @@ export const gnosisTokenBalanceSnapshotSchema = new Schema<GnosisTokenBalanceSna
   blockTimestamp: { type: Number, required: true },
 })
   // composite index
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   .index({ safe: 1, blockNumber: 1 }, { unique: true });
 
 type GnosisTokenBalanceSnapshotModel = Model<GnosisTokenBalanceSnapshotDocumentType>;
