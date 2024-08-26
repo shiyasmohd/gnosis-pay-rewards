@@ -74,8 +74,10 @@ export async function startIndexing({
   const toBlockNumberInitial = clampToBlockRange(fromBlockNumberInitial, latestBlockInitial.number, fetchBlockSize);
 
   const indexerStateAtom = atom<IndexerStateAtomType>({
+    startBlock: fromBlockNumberInitial,
     fetchBlockSize,
     latestBlockNumber: latestBlockInitial.number,
+    distanceToLatestBlockNumber: bigMath.abs(latestBlockInitial.number - fromBlockNumberInitial),
     fromBlockNumber: fromBlockNumberInitial,
     toBlockNumber: toBlockNumberInitial,
   });
@@ -89,11 +91,13 @@ export async function startIndexing({
       .limit(1);
 
     if (latestGnosisPayTransaction !== undefined) {
-      const fromBlockNumber = 34778838n; // BigInt(latestGnosisPayTransaction.blockNumber) - 1n;
+      const fromBlockNumber = BigInt(latestGnosisPayTransaction.blockNumber) - 1n;
       const toBlockNumber = clampToBlockRange(fromBlockNumber, latestBlockInitial.number, fetchBlockSize);
 
       indexerStateStore.set(indexerStateAtom, (prev) => ({
         ...prev,
+        startBlock: fromBlockNumber,
+        distanceToLatestBlockNumber: bigMath.abs(latestBlockInitial.number - fromBlockNumber),
         fromBlockNumber,
         toBlockNumber,
       }));
@@ -144,6 +148,12 @@ export async function startIndexing({
 
   restApiServer.listen(HTTP_SERVER_PORT, HTTP_SERVER_HOST);
   socketIoServer.listen(SOCKET_IO_SERVER_PORT);
+
+  const apiServerUrl = `http://${HTTP_SERVER_HOST}:${HTTP_SERVER_PORT}`;
+  const wsServerUrl = `ws://${HTTP_SERVER_HOST}:${SOCKET_IO_SERVER_PORT}`;
+
+  console.log('WebSocket server available at', wsServerUrl);
+  console.log('REST API server available at', apiServerUrl);
 
   // Index all the logs until the latest block
   while (shouldFetchLogs(getIndexerState)) {
@@ -217,18 +227,20 @@ export async function startIndexing({
     // Move to the next block range
     const nextFromBlockNumber = fromBlockNumber + fetchBlockSize;
     const nextToBlockNumber = clampToBlockRange(nextFromBlockNumber, latestBlockNumber, fetchBlockSize);
+    // Sanity check to make sure we're not going too fast
+    const distanceToLatestBlockNumber = bigMath.abs(nextToBlockNumber - latestBlockNumber);
 
     indexerStateStore.set(indexerStateAtom, (prev) => ({
       ...prev,
       fromBlockNumber: nextFromBlockNumber,
+      distanceToLatestBlockNumber,
       toBlockNumber: nextToBlockNumber,
     }));
 
-    // Sanity check to make sure we're not going too fast
-    const distanceToLatestBlock = bigMath.abs(nextToBlockNumber - latestBlockNumber);
+    console.log('distance to latest block', Number(distanceToLatestBlockNumber));
 
     // Cooldown for 20 seconds if we're within a distance of 10 blocks
-    if (distanceToLatestBlock < 10n) {
+    if (distanceToLatestBlockNumber <= 10n) {
       const targetBlockNumber = toBlockNumber + fetchBlockSize + 3n;
 
       const message = `Waiting for #${targetBlockNumber} to continue indexing`;
