@@ -27,6 +27,13 @@ export function addHttpRoutes({
   logger: ReturnType<typeof createMongooseLogger>;
   getIndexerState: () => IndexerStateAtomType;
 }) {
+  expressApp.get<'/'>('/', (_, res) => {
+    return res.send({
+      status: 'ok',
+      statusCode: 200,
+    });
+  });
+
   expressApp.get<'/status'>('/status', (_, res) => {
     const state = getIndexerState();
 
@@ -68,40 +75,10 @@ export function addHttpRoutes({
         week,
       });
 
-      // const allCashbacks = await weekCashbackRewardModel
-      //   .find({
-      //     address: new RegExp(safeAddress, 'i'),
-      //   })
-      //   .populate<{
-      //     transactions: GnosisPayTransactionFieldsType_Populated;
-      //   }>({
-      //     path: 'transactions',
-      //     select: {
-      //       _id: 0,
-      //       blockNumber: 1,
-      //       blockTimestamp: 1,
-      //       transactionHash: 1,
-      //       spentAmount: 1,
-      //       spentAmountUsd: 1,
-      //       gnoBalance: 1,
-      //     },
-      //     populate: {
-      //       path: 'amountToken',
-      //       select: {
-      //         symbol: 1,
-      //         decimals: 1,
-      //         name: 1,
-      //       },
-      //       transform: (doc, id) => ({
-      //         ...doc,
-      //         address: id,
-      //       }),
-      //     },
-      //   })
-      //   .lean();
+      const weekCashbackRewardJson = weekCashbackRewardDocument.toJSON();
 
       return res.json({
-        data: weekCashbackRewardDocument,
+        data: weekCashbackRewardJson,
         status: 'ok',
         statusCode: 200,
         _query: {
