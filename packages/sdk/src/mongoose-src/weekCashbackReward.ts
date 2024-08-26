@@ -1,10 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Address, isAddress } from 'viem';
 import { ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
-import { WeekCashbackRewardDocumentFieldsType_Populated, WeekCashbackRewardDocumentFieldsType_Unpopulated } from '../database/weekReward';
+import {
+  WeekCashbackRewardDocumentFieldsType_Populated,
+  WeekCashbackRewardDocumentFieldsType_Unpopulated,
+} from '../database/weekReward';
 import { WeekIdFormatType, weekIdFormat } from '../database/weekData';
 import { GnosisPayTransactionFieldsType_Unpopulated } from '../database/spendTransaction';
 import { dayjsUtc } from './dayjsUtc';
+import { gnosisTokenBalanceSnapshotModelName } from './gnosisTokenBalanceSnapshot';
 
 const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType_Unpopulated>(
   {
@@ -50,6 +54,12 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
         ref: 'GnosisPayTransaction',
       },
     ],
+    gnoBalanceSnapshots: [
+      {
+        type: String,
+        ref: gnosisTokenBalanceSnapshotModelName,
+      },
+    ],
   },
   { timestamps: true }
 );
@@ -57,12 +67,17 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
 const modelName = 'WeekCashbackReward' as const;
 
 /**
+ * Create a document id for the week cashback reward in the format of week/address
  * @param week - e.g. 2024-03-01
  * @param address - e.g. 0x123456789abcdef123456789abcdef123456789ab
- * @returns
+ * @returns `2024-03-01/0x123456789abcdef123456789abcdef123456789ab`
+ *
+ * @example
+ * const docId = toDocumentId('2024-03-01', '0x123456789abcdef123456789abcdef123456789ab')
+ * docId === '2024-03-01/0x123456789abcdef123456789abcdef123456789ab'
  */
-export function toDocumentId(week: typeof weekIdFormat, address: Address) {
-  return `${week}/${address.toLowerCase()}`;
+export function toDocumentId(week: typeof weekIdFormat, address: Address): `${WeekIdFormatType}/${Address}` {
+  return `${week}/${address.toLowerCase() as Address}`;
 }
 
 /**
@@ -123,6 +138,7 @@ export async function createWeekCashbackRewardDocument<Populated extends boolean
       amount: 0,
       netUsdVolume: 0,
       transactions: [],
+      gnoBalanceSnapshots: [],
     }).save({ session });
 
     return newDoc as any;
