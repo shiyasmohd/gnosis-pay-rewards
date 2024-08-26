@@ -120,6 +120,7 @@ export async function processSpendLog({
         owners: safeOwners,
         netUsdVolume: 0,
         transactions: [],
+        gnoBalanceSnapshots: [],
       },
       mongooseModels
     );
@@ -215,6 +216,7 @@ export async function processRefundLog({
         owners: safeOwners,
         netUsdVolume: 0,
         transactions: [],
+        gnoBalanceSnapshots: [],
       },
       mongooseModels
     );
@@ -383,6 +385,7 @@ async function saveToDatabase(
     netUsdVolume: weekCashbackRewardOldSnapshot.netUsdVolume,
     gnoBalance,
     isOgNftHolder: gnosisPaySafeAddressPayload.isOg,
+    monthToDateUsdVolume: 0,
   });
 
   // Calculate the estimated reward for the week

@@ -207,6 +207,7 @@ export async function startIndexing({
       mongooseModels: {
         gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
         gnosisTokenBalanceSnapshotModel: mongooseModels.gnosisTokenBalanceSnapshotModel,
+        weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
       },
       logs: gnosisTokenTransferLogs,
       logger,

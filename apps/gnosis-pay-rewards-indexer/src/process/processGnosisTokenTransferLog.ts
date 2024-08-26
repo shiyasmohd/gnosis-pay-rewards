@@ -1,6 +1,8 @@
 import {
   createGnosisTokenBalanceSnapshotModel,
   getGnosisPaySafeAddressModel,
+  getWeekCashbackRewardModel,
+  toDocumentId,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { GnosisTokenBalanceSnapshotDocumentType, gnoToken, toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { GnosisChainPublicClient } from './types';
@@ -12,6 +14,7 @@ import { erc20Abi, formatUnits } from 'viem';
 type MongooseModels = {
   gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
   gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
+  weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
 };
 
 export async function processGnosisTokenTransferLog({
@@ -25,7 +28,7 @@ export async function processGnosisTokenTransferLog({
 }) {
   try {
     const { blockNumber, transactionHash } = log;
-    const { gnosisPaySafeAddressModel, gnosisTokenBalanceSnapshotModel } = mongooseModels;
+    const { gnosisPaySafeAddressModel, gnosisTokenBalanceSnapshotModel, weekCashbackRewardModel } = mongooseModels;
     const { from, to } = log.args;
 
     // Validate that the log has not already been processed
@@ -63,25 +66,36 @@ export async function processGnosisTokenTransferLog({
       functionName: 'balanceOf',
     });
 
+    const weekId = toWeekDataId(Number(block.timestamp));
+
     const mongooseSession = await gnosisTokenBalanceSnapshotModel.startSession();
     mongooseSession.startTransaction();
 
-    const gnoBalanceSnapshot = new gnosisTokenBalanceSnapshotModel<GnosisTokenBalanceSnapshotDocumentType>({
+    // Create the Gnosis token balance snapshot
+    const gnoBalanceSnapshotDocument = await new gnosisTokenBalanceSnapshotModel<
+      GnosisTokenBalanceSnapshotDocumentType
+    >({
       blockNumber: Number(blockNumber),
       safe: safeAddress,
       balance: Number(formatUnits(gnoBalanceRaw, gnoToken.decimals)),
       balanceRaw: gnoBalanceRaw.toString(),
       blockTimestamp: Number(block.timestamp),
-      weekId: toWeekDataId(Number(block.timestamp)),
-    });
+      weekId,
+    }).save({ session: mongooseSession });
 
-    const saved = await gnoBalanceSnapshot.save({ session: mongooseSession });
+    // Update the week cashback reward
+    await weekCashbackRewardModel.findByIdAndUpdate(
+      toDocumentId(weekId, safeAddress),
+      { $push: { gnoBalanceSnapshots: gnoBalanceSnapshotDocument.id } },
+      { session: mongooseSession }
+    );
 
+    // Update the Gnosis Pay Safe's gnoBalanceSnapshots
     await gnosisPaySafeAddressModel.updateOne(
       { _id: safeAddress },
       {
         $push: {
-          gnoBalanceSnapshots: saved.id,
+          gnoBalanceSnapshots: gnoBalanceSnapshotDocument.id,
         },
       },
       { session: mongooseSession }
@@ -90,10 +104,8 @@ export async function processGnosisTokenTransferLog({
     await mongooseSession.commitTransaction();
     await mongooseSession.endSession();
 
-    const savedJson = saved.toJSON();
-
     return {
-      data: savedJson,
+      data: gnoBalanceSnapshotDocument.toJSON(),
       error: null,
     };
   } catch (e) {

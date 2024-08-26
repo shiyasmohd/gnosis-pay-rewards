@@ -55,7 +55,7 @@ export async function getGnosisPayRefundLogs({
   }
 }
 
-export const erc20TokenTransferAbiItem = {
+const erc20TokenTransferAbiItem = {
   name: 'Transfer',
   type: 'event',
   inputs: [
