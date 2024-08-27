@@ -1,5 +1,6 @@
 import { Model, Mongoose, Schema } from 'mongoose';
-import { toWeekDataId, weekIdFormat } from '../database/weekData';
+import { toWeekDataId, WeekIdFormatType } from '../database/weekData';
+import { mongooseSchemaWeekIdField } from './sharedSchemaFields';
 
 export const blockModelName = 'Block' as const;
 
@@ -8,7 +9,7 @@ export type BlockDocumentFieldsType = {
   number: number;
   hash: string;
   timestamp: number;
-  weekId: typeof weekIdFormat;
+  weekId: WeekIdFormatType;
 };
 
 const blockSchema = new Schema<BlockDocumentFieldsType>(
@@ -25,10 +26,7 @@ const blockSchema = new Schema<BlockDocumentFieldsType>(
       type: String,
       required: true,
     },
-    weekId: {
-      type: String,
-      required: true,
-    },
+    weekId: mongooseSchemaWeekIdField,
     timestamp: {
       type: Number,
       required: true,
@@ -39,6 +37,7 @@ const blockSchema = new Schema<BlockDocumentFieldsType>(
   }
 );
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 blockSchema.index({ number: 1 }, { unique: true });
 

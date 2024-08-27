@@ -1,11 +1,11 @@
 import { Mongoose, Schema, Model } from 'mongoose';
 import { GnosisTokenBalanceSnapshotDocumentType } from '../database/gnosisTokenBalanceSnapshot';
-import { mongooseSchemaAddressField } from './sharedSchemaFields';
+import { mongooseSchemaAddressField, mongooseSchemaWeekIdField } from './sharedSchemaFields';
 
 export const gnosisTokenBalanceSnapshotModelName = 'GnosisTokenBalanceSnapshot' as const;
 
 export const gnosisTokenBalanceSnapshotSchema = new Schema<GnosisTokenBalanceSnapshotDocumentType>({
-  weekId: { type: String, required: true },
+  weekId: mongooseSchemaWeekIdField,
   safe: {
     ...mongooseSchemaAddressField,
     ref: 'GnosisPaySafeAddress',

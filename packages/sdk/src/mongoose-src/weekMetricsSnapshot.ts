@@ -21,6 +21,7 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
     ],
   },
   { timestamps: true }
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
 ).index({ date: 1 }, { unique: true });
 

@@ -1,6 +1,6 @@
 import { Model, Mongoose, Schema } from 'mongoose';
 import { isHash } from 'viem';
-import { mongooseSchemaAddressField } from './sharedSchemaFields';
+import { mongooseSchemaAddressField, mongooseSchemaWeekIdField } from './sharedSchemaFields';
 import { GnosisPayTransactionFieldsType_Unpopulated, GnosisPayTransactionType } from '../database/spendTransaction';
 import { isValidWeekDataId } from '../database/weekData';
 
@@ -25,14 +25,7 @@ export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsT
       type: Number,
       required: true,
     },
-    weekId: {
-      type: String,
-      required: true,
-      validate: {
-        validator: (value: string) => isValidWeekDataId(value),
-        message: '{VALUE} is not a valid week ID, must be in YYYY-MM-DD format',
-      },
-    },
+    weekId: mongooseSchemaWeekIdField,
     blockTimestamp: {
       type: Number,
       required: true,
