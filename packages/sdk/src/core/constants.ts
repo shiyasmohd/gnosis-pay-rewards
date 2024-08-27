@@ -18,6 +18,12 @@ export const gnosisPaySpenderModuleAddress = '0xcFF260bfbc199dC82717494299b1AcAD
 export const gnoTokenAddress = '0x9c58bacc331c9aa871afd802db6379a98e80cedb' as const;
 
 /**
+ * Gnosis Pay Reward Distribution Safe Address.
+ * The safe from which rewards are distributed to other safes.
+ */
+export const gnosisPayRewardDistributionSafeAddress = '0xCdF50be9061086e2eCfE6e4a1BF9164d43568EEC' as const;
+
+/**
  * Gnosis Pay start block, use this for indexing Gnosis Pay events.
  * This block https://gnosisscan.io/block/35652320
  * Aug-25-2024 12:00:40 AM +UTC
