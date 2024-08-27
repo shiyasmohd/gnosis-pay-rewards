@@ -1,6 +1,6 @@
 import { Model, Mongoose, Schema } from 'mongoose';
 
-import { mongooseSchemaAddressField, mongooseSchemaHashField, mongooseSchemaWeekIdField } from './sharedSchemaFields';
+import { mongooseSchemaAddressField, mongooseSchemaHashField } from './sharedSchemaFields';
 import { Address } from 'viem';
 
 export const gnosisPayRewardDistributionModelName = 'GnosisPayRewardDistribution' as const;
