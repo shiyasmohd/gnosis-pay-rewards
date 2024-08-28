@@ -22,8 +22,7 @@ import {
 import { Model } from 'mongoose';
 import { formatUnits, Address, isAddressEqual } from 'viem';
 import { getGnosisPaySpendLogs } from '../gp/getGnosisPaySpendLogs.js';
-
-import { getBlockByNumber as getBlockByNumberCore } from '../getBlockByNumber.js';
+import { getBlockByNumber } from './actions.js';
 import { getGnosisPaySafeAddressFromModule } from '../gp/getGnosisPaySafeAddressFromModule.js';
 import { getGnoTokenBalance } from '../getGnoTokenBalance.js';
 import { getGnosisPayRefundLogs } from '../gp/getGnosisPayRefundLogs.js';
@@ -53,6 +52,7 @@ export async function processSpendLog({
     const block = await getBlockByNumber({
       blockNumber: log.blockNumber,
       client,
+      useCache: true,
     });
 
     const safeAddress = await getGnosisPaySafeAddressFromModule({
@@ -155,6 +155,7 @@ export async function processRefundLog({
     const block = await getBlockByNumber({
       blockNumber,
       client,
+      useCache: true,
     });
 
     const safeOwners = await getGnosisPaySafeOwners({
@@ -256,18 +257,6 @@ function validateToken(tokenAddress: Address) {
   }
 
   return spentToken;
-}
-
-async function getBlockByNumber(params: Parameters<typeof getBlockByNumberCore>[0]) {
-  const { data: block } = await getBlockByNumberCore(params);
-
-  if (!block) {
-    throw new Error(`Block #${params.blockNumber} not found`, {
-      cause: 'BLOCK_NOT_FOUND',
-    });
-  }
-
-  return block;
 }
 
 async function getGnosisPaySafeOwners(params: Parameters<typeof getGnosisPaySafeOwnersCore>[0]) {

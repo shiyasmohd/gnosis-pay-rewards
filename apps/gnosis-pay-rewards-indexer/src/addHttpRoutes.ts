@@ -5,28 +5,35 @@ import {
   getWeekCashbackRewardModel,
   toDocumentId,
   createWeekCashbackRewardDocument,
+  createGnosisPayRewardDistributionModel,
+  GnosisPayRewardDistributionDocumentFieldsType,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
-import { isAddress } from 'viem';
+import { Address, isAddress } from 'viem';
 import { buildExpressApp } from './server.js';
 import dayjs from 'dayjs';
 import dayjsUtc from 'dayjs/plugin/utc.js';
 import { IndexerStateAtomType } from './state.js';
+import { z, ZodError } from 'zod';
 
 dayjs.extend(dayjsUtc);
 
 export function addHttpRoutes({
   expressApp,
-  gnosisPayTransactionModel,
-  weekCashbackRewardModel,
+  mongooseModels,
   getIndexerState,
 }: {
   expressApp: ReturnType<typeof buildExpressApp>;
-  gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
-  weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+  mongooseModels: {
+    gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
+    weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+    gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
+  };
   logger: ReturnType<typeof createMongooseLogger>;
   getIndexerState: () => IndexerStateAtomType;
 }) {
+  const { gnosisPayTransactionModel, weekCashbackRewardModel, gnosisPayRewardDistributionModel } = mongooseModels;
+
   expressApp.get<'/'>('/', (_, res) => {
     return res.send({
       status: 'ok',
@@ -36,12 +43,13 @@ export function addHttpRoutes({
 
   expressApp.get<'/status'>('/status', (_, res) => {
     const state = getIndexerState();
+    const indexerState = Object.fromEntries(
+      Object.entries(state).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value])
+    );
 
     return res.send({
       data: {
-        indexerState: Object.fromEntries(
-          Object.entries(state).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value])
-        ),
+        indexerState,
       },
       status: 'ok',
       statusCode: 200,
@@ -57,15 +65,7 @@ export function addHttpRoutes({
 
   expressApp.get<'/cashbacks/:safeAddress'>('/cashbacks/:safeAddress', async (req, res) => {
     try {
-      const safeAddress = req.params.safeAddress;
-
-      if (!isAddress(safeAddress)) {
-        return res.status(4000).json({
-          error: 'Invalid address',
-          status: 'error',
-          statusCode: 400,
-        });
-      }
+      const safeAddress = addressSchema.parse(req.params.safeAddress);
 
       const week = toWeekDataId(dayjs.utc().unix());
       const weekCashbackRewardDocument = await createWeekCashbackRewardDocument({
@@ -86,23 +86,14 @@ export function addHttpRoutes({
         },
       });
     } catch (error) {
-      return returnInternalServerError(res, error as Error);
+      return returnServerError(res, error as Error);
     }
   });
 
   expressApp.get<'/cashbacks/:safeAddress/:week'>('/cashbacks/:safeAddress/:week', async (req, res) => {
     try {
-      const safeAddress = req.params.safeAddress;
+      const safeAddress = addressSchema.parse(req.params.safeAddress);
       const week = req.params.week as ReturnType<typeof toWeekDataId>;
-
-      if (!isAddress(safeAddress)) {
-        return res.status(4000).json({
-          error: 'Invalid address',
-          status: 'error',
-          statusCode: 400,
-        });
-      }
-
       const documentId = toDocumentId(week, safeAddress);
 
       const weekCashbackRewardSnapshot = await weekCashbackRewardModel
@@ -134,21 +125,43 @@ export function addHttpRoutes({
         statusCode: 200,
       });
     } catch (error) {
-      return returnInternalServerError(res, error as Error);
+      return returnServerError(res, error as Error);
+    }
+  });
+
+  expressApp.get<'/distributions/:safeAddress'>('/distributions/:safeAddress', async (req, res) => {
+    try {
+      const safe = addressSchema.parse(req.params.safeAddress).toLowerCase();
+
+      const transactions = await gnosisPayRewardDistributionModel
+        .find<GnosisPayRewardDistributionDocumentFieldsType>({
+          safe,
+        })
+        .sort({ blockNumber: -1 })
+        .lean();
+
+      const totalRewards = transactions.reduce((acc, dist) => dist.amount + acc, 0);
+
+      return res.json({
+        data: {
+          safe,
+          totalRewards,
+          transactions,
+        },
+        status: 'ok',
+        statusCode: 200,
+        _query: {
+          safe,
+        },
+      });
+    } catch (error) {
+      return returnServerError(res, error as Error);
     }
   });
 
   expressApp.get<'/transactions/:safeAddress'>('/transactions/:safeAddress', async (req, res) => {
     try {
-      const safeAddress = req.params.safeAddress;
-
-      if (!isAddress(safeAddress)) {
-        return res.status(4000).json({
-          error: 'Invalid address',
-          status: 'error',
-          statusCode: 400,
-        });
-      }
+      const safeAddress = addressSchema.parse(req.params.safeAddress);
 
       const transactions = await gnosisPayTransactionModel
         .find({
@@ -164,7 +177,7 @@ export function addHttpRoutes({
         statusCode: 200,
       });
     } catch (error) {
-      return returnInternalServerError(res, error as Error);
+      return returnServerError(res, error as Error);
     }
   });
 
@@ -176,7 +189,15 @@ export function addHttpRoutes({
  * @param error Error object
  * @returns Express response object
  */
-function returnInternalServerError(res: Response, error?: Error) {
+function returnServerError(res: Response, error?: Error) {
+  if (error instanceof ZodError) {
+    return res.status(400).json({
+      error: error.message,
+      status: 'error',
+      statusCode: 400,
+    });
+  }
+
   return res.status(500).json({
     error: 'Internal server error',
     status: 'error',
@@ -184,3 +205,7 @@ function returnInternalServerError(res: Response, error?: Error) {
     statusCode: 500,
   });
 }
+
+const addressSchema = z.string().refine(isAddress, {
+  message: 'Invalid EVM address',
+});

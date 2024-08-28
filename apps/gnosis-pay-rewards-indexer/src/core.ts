@@ -12,6 +12,7 @@ import {
   getWeekCashbackRewardModel,
   LogLevel,
   createGnosisTokenBalanceSnapshotModel,
+  createGnosisPayRewardDistributionModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { atom, createStore } from 'jotai';
 import { PublicClient, Transport } from 'viem';
@@ -28,8 +29,10 @@ import { addSocketComms } from './addSocketComms.js';
 import { IndexerStateAtomType } from './state.js';
 import { processRefundLog, processSpendLog } from './process/processSpendLog.js';
 import { processGnosisTokenTransferLog } from './process/processGnosisTokenTransferLog.js';
+import { processGnosisPayRewardDistributionLog } from './process/processGnosisPayRewardDistributionLog.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { getGnosisTokenTransferLogs } from './gp/getGnosisTokenTransferLogs.js';
+import { getGnosisPayRewardDistributionLogs } from './gp/getGnosisPayRewardDistributionLogs.js';
 
 export async function startIndexing({
   client,
@@ -61,6 +64,7 @@ export async function startIndexing({
     loggerModel: getLoggerModel(mongooseConnection),
     blockModel: getBlockModel(mongooseConnection),
     gnosisTokenBalanceSnapshotModel: createGnosisTokenBalanceSnapshotModel(mongooseConnection),
+    gnosisPayRewardDistributionModel: createGnosisPayRewardDistributionModel(mongooseConnection),
   };
 
   const logger = createMongooseLogger(mongooseModels.loggerModel);
@@ -132,8 +136,11 @@ export async function startIndexing({
 
   const restApiServer = addHttpRoutes({
     expressApp: buildExpressApp(),
-    gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
-    weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
+    mongooseModels: {
+      gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
+      weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
+      gnosisPayRewardDistributionModel: mongooseModels.gnosisPayRewardDistributionModel,
+    },
     logger,
     getIndexerState() {
       return indexerStateStore.get(indexerStateAtom);
@@ -183,6 +190,13 @@ export async function startIndexing({
     });
 
     const gnosisTokenTransferLogs = await getGnosisTokenTransferLogs({
+      client,
+      fromBlock: fromBlockNumber,
+      toBlock: toBlockNumber,
+      verbose: true,
+    });
+
+    const gnosisPayRewardDistributionLogs = await getGnosisPayRewardDistributionLogs({
       client,
       fromBlock: fromBlockNumber,
       toBlock: toBlockNumber,
@@ -358,6 +372,43 @@ async function handleGnosisTokenTransferLogs({
       if (error) {
         throw error;
       }
+    } catch (e) {
+      const error = e as Error;
+
+      if (error.cause !== 'LOG_ALREADY_PROCESSED') {
+        console.error(error);
+      }
+
+      logger.log({
+        level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
+        message: `Error processing ${log.eventName} log (${log.transactionHash}) at #${log.blockNumber} with error: ${error.message}`,
+        metadata: {
+          originalError: error.message,
+          log,
+        },
+      });
+    }
+  }
+}
+
+async function handleGnosisPayRewardsDistributionLogs({
+  client,
+  mongooseModels,
+  logger,
+  logs,
+}: {
+  logs: Awaited<ReturnType<typeof getGnosisPayRewardDistributionLogs>>;
+  client: PublicClient<Transport, typeof gnosis>;
+  mongooseModels: Parameters<typeof processGnosisPayRewardDistributionLog>[0]['mongooseModels'];
+  logger: ReturnType<typeof createMongooseLogger>;
+  socketIoServer: ReturnType<typeof buildSocketIoServer>;
+}) {
+  for (const log of logs) {
+    try {
+      const { error } = await processGnosisPayRewardDistributionLog({
+        log,
+        mongooseModels,
+      });
     } catch (e) {
       const error = e as Error;
 

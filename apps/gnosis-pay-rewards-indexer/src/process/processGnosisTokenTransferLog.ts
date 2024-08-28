@@ -8,7 +8,7 @@ import { GnosisTokenBalanceSnapshotDocumentType, gnoToken, toWeekDataId } from '
 import { GnosisChainPublicClient } from './types';
 import { getGnosisTokenTransferLogs } from '../gp/getGnosisTokenTransferLogs';
 import { isGnosisPaySafeAddress } from '../gp/isGnosisPaySafeAddress.js';
-import { getBlockByNumber as getBlockByNumberCore } from '../getBlockByNumber.js';
+import { getBlockByNumber } from './actions.js';
 import { erc20Abi, formatUnits } from 'viem';
 
 type MongooseModels = {
@@ -56,6 +56,7 @@ export async function processGnosisTokenTransferLog({
     const block = await getBlockByNumber({
       blockNumber,
       client,
+      useCache: true,
     });
 
     const gnoBalanceRaw = await client.readContract({
@@ -124,16 +125,4 @@ async function validateLogIsNotAlreadyProcessed(
   if (existing) {
     throw new Error('Log already processed');
   }
-}
-
-async function getBlockByNumber(params: Parameters<typeof getBlockByNumberCore>[0]) {
-  const { data: block } = await getBlockByNumberCore(params);
-
-  if (!block) {
-    throw new Error(`Block #${params.blockNumber} not found`, {
-      cause: 'BLOCK_NOT_FOUND',
-    });
-  }
-
-  return block;
 }
