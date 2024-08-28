@@ -2,7 +2,6 @@ import { Model, Mongoose, Schema } from 'mongoose';
 import { isHash } from 'viem';
 import { mongooseSchemaAddressField, mongooseSchemaWeekIdField } from './sharedSchemaFields';
 import { GnosisPayTransactionFieldsType_Unpopulated, GnosisPayTransactionType } from '../database/spendTransaction';
-import { isValidWeekDataId } from '../database/weekData';
 
 export const gnosisPayTransactionModelName = 'GnosisPayTransaction' as const;
 
