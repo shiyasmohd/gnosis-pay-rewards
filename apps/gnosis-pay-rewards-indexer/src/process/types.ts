@@ -1,6 +1,7 @@
 import {
   GnosisPayTransactionFieldsType_Populated,
   GnosisPayTransactionFieldsType_Unpopulated,
+  GnosisTokenBalanceSnapshotDocumentType,
   WeekCashbackRewardDocumentFieldsType_Populated,
   WeekSnapshotDocumentFieldsType,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
@@ -17,6 +18,7 @@ export type MongooseConfiguredModels = {
   gnosisPaySafeAddressModel: Model<GnosisPaySafeAddressDocumentFieldsType_Unpopulated>;
   weekCashbackRewardModel: WeekCashbackRewardModelType;
   weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>;
+  gnosisTokenBalanceSnapshotModel: Model<GnosisTokenBalanceSnapshotDocumentType>;
 };
 
 

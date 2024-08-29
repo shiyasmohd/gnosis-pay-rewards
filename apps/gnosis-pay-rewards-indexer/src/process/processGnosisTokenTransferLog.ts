@@ -1,15 +1,17 @@
 import {
+  createGnosisTokenBalanceSnapshotDocument,
   createGnosisTokenBalanceSnapshotModel,
+  createWeekCashbackRewardDocument,
   getGnosisPaySafeAddressModel,
   getWeekCashbackRewardModel,
-  toDocumentId,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
-import { GnosisTokenBalanceSnapshotDocumentType, gnoToken, toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { gnoToken, toWeekDataId, getTokenBalanceOf } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { Address, formatUnits } from 'viem';
+
 import { GnosisChainPublicClient } from './types';
-import { getGnosisTokenTransferLogs } from '../gp/getGnosisTokenTransferLogs';
+import { getGnosisTokenTransferLogs } from '../gp/getGnosisTokenTransferLogs.js';
 import { isGnosisPaySafeAddress } from '../gp/isGnosisPaySafeAddress.js';
 import { getBlockByNumber } from './actions.js';
-import { erc20Abi, formatUnits } from 'viem';
 
 type MongooseModels = {
   gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
@@ -50,7 +52,7 @@ export async function processGnosisTokenTransferLog({
       throw new Error('Neither sender nor receiver is a Gnosis Pay Safe');
     }
 
-    const safeAddress = isSenderGnosisPaySafe ? from : to;
+    const safeAddress = (isSenderGnosisPaySafe ? from : to).toLowerCase() as Address;
 
     // Fetch the block to get the timestamp
     const block = await getBlockByNumber({
@@ -59,12 +61,11 @@ export async function processGnosisTokenTransferLog({
       useCache: true,
     });
 
-    const gnoBalanceRaw = await client.readContract({
-      abi: erc20Abi,
-      address: gnoToken.address,
-      args: [safeAddress],
+    const gnoBalanceRaw = await getTokenBalanceOf({
+      token: gnoToken.address,
+      address: safeAddress,
+      client,
       blockNumber,
-      functionName: 'balanceOf',
     });
 
     const weekId = toWeekDataId(Number(block.timestamp));
@@ -72,31 +73,57 @@ export async function processGnosisTokenTransferLog({
     const mongooseSession = await gnosisTokenBalanceSnapshotModel.startSession();
     mongooseSession.startTransaction();
 
-    // Create the Gnosis token balance snapshot
-    const gnoBalanceSnapshotDocument = await new gnosisTokenBalanceSnapshotModel<
-      GnosisTokenBalanceSnapshotDocumentType
-    >({
-      blockNumber: Number(blockNumber),
-      safe: safeAddress,
-      balance: Number(formatUnits(gnoBalanceRaw, gnoToken.decimals)),
-      balanceRaw: gnoBalanceRaw.toString(),
-      blockTimestamp: Number(block.timestamp),
-      weekId,
-    }).save({ session: mongooseSession });
+    // Create the Gnosis Token Balance Snapshot document
+    const gnosisTokenBalanceSnapshotDocument = await createGnosisTokenBalanceSnapshotDocument(
+      gnosisTokenBalanceSnapshotModel,
+      {
+        blockNumber: Number(blockNumber),
+        safe: safeAddress,
+        balance: Number(formatUnits(gnoBalanceRaw, gnoToken.decimals)),
+        balanceRaw: gnoBalanceRaw.toString(),
+        blockTimestamp: Number(block.timestamp),
+        weekId,
+      },
+      mongooseSession
+    );
 
-    // Update the week cashback reward
-    await weekCashbackRewardModel.findByIdAndUpdate(
-      toDocumentId(weekId, safeAddress),
-      { $push: { gnoBalanceSnapshots: gnoBalanceSnapshotDocument.id } },
+    // Create or load the Week Cashback Reward document
+    // to append the new balance snapshot to
+    const weekCashbackRewardDocument = await createWeekCashbackRewardDocument(
+      { address: safeAddress, weekCashbackRewardModel, week: weekId },
+      mongooseSession
+    );
+
+    // Find other balance snapshots in the same week for the safe
+    const weekGnoBalanceSnapshotDocuments = await gnosisTokenBalanceSnapshotModel.find(
+      {
+        safe: safeAddress,
+        weekId,
+      },
+      { balance: 1 },
       { session: mongooseSession }
     );
+
+    // Append the new gnoBalanceSnapshot to the weekCashbackRewardDocument
+    weekCashbackRewardDocument.gnoBalanceSnapshots.push(gnosisTokenBalanceSnapshotDocument.id);
+
+    if (weekGnoBalanceSnapshotDocuments.length > 0) {
+      const minGnoBalance = weekGnoBalanceSnapshotDocuments[0].balance;
+
+      const maxGnoBalance = weekGnoBalanceSnapshotDocuments[weekGnoBalanceSnapshotDocuments.length - 1].balance;
+
+      weekCashbackRewardDocument.minGnoBalance = minGnoBalance;
+      weekCashbackRewardDocument.maxGnoBalance = maxGnoBalance;
+    }
+
+    await weekCashbackRewardDocument.save({ session: mongooseSession });
 
     // Update the Gnosis Pay Safe's gnoBalanceSnapshots
     await gnosisPaySafeAddressModel.updateOne(
       { _id: safeAddress },
       {
         $push: {
-          gnoBalanceSnapshots: gnoBalanceSnapshotDocument.id,
+          gnoBalanceSnapshots: gnosisTokenBalanceSnapshotDocument.id,
         },
       },
       { session: mongooseSession }
@@ -106,7 +133,7 @@ export async function processGnosisTokenTransferLog({
     await mongooseSession.endSession();
 
     return {
-      data: gnoBalanceSnapshotDocument.toJSON(),
+      data: gnosisTokenBalanceSnapshotDocument.toJSON(),
       error: null,
     };
   } catch (e) {

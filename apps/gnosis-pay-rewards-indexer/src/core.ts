@@ -1,6 +1,5 @@
 import { gnosisPayStartBlock, bigMath, gnosisPayTokens } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
-  createConnection,
   getGnosisPayTransactionModel,
   getTokenModel,
   saveGnosisPayTokensToDatabase,
@@ -14,6 +13,7 @@ import {
   createGnosisTokenBalanceSnapshotModel,
   createGnosisPayRewardDistributionModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
+import { Mongoose } from 'mongoose';
 import { atom, createStore } from 'jotai';
 import { PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
@@ -21,7 +21,7 @@ import { gnosis } from 'viem/chains';
 import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
 import { clampToBlockRange } from './utils.js';
 import { buildSocketIoServer, buildExpressApp } from './server.js';
-import { SOCKET_IO_SERVER_PORT, MONGODB_URI, HTTP_SERVER_HOST, HTTP_SERVER_PORT } from './config/env.js';
+import { SOCKET_IO_SERVER_PORT, HTTP_SERVER_HOST, HTTP_SERVER_PORT } from './config/env.js';
 import { waitForBlock } from './waitForBlock.js';
 
 import { addHttpRoutes } from './addHttpRoutes.js';
@@ -34,11 +34,7 @@ import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { getGnosisTokenTransferLogs } from './gp/getGnosisTokenTransferLogs.js';
 import { getGnosisPayRewardDistributionLogs } from './gp/getGnosisPayRewardDistributionLogs.js';
 
-export async function startIndexing({
-  client,
-  resumeIndexing = false,
-  fetchBlockSize = 12n * 5n,
-}: {
+export type StartIndexingParamsType = {
   client: PublicClient<Transport, typeof gnosis>;
   /**
    * If true, the indexer will resume indexing from the latest pending reward in the database.
@@ -47,27 +43,30 @@ export async function startIndexing({
    */
   readonly resumeIndexing?: boolean;
   readonly fetchBlockSize?: bigint;
-}) {
-  // Connect to the database
-  const mongooseConnection = await createConnection(MONGODB_URI);
-
-  console.log('Connected to mongodb at', mongooseConnection.connection.host);
-
-  console.log('Migrating Gnosis Pay tokens to database');
-
-  const mongooseModels = {
-    gnosisPaySafeAddressModel: getGnosisPaySafeAddressModel(mongooseConnection),
-    gnosisPayTransactionModel: getGnosisPayTransactionModel(mongooseConnection),
-    weekCashbackRewardModel: getWeekCashbackRewardModel(mongooseConnection),
-    weekMetricsSnapshotModel: getWeekMetricsSnapshotModel(mongooseConnection),
-    gnosisPayTokenModel: getTokenModel(mongooseConnection),
-    loggerModel: getLoggerModel(mongooseConnection),
-    blockModel: getBlockModel(mongooseConnection),
-    gnosisTokenBalanceSnapshotModel: createGnosisTokenBalanceSnapshotModel(mongooseConnection),
-    gnosisPayRewardDistributionModel: createGnosisPayRewardDistributionModel(mongooseConnection),
+  mongooseConnection: Mongoose;
+  mongooseModels: {
+    gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
+    gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
+    weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+    weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
+    gnosisPayTokenModel: ReturnType<typeof getTokenModel>;
+    loggerModel: ReturnType<typeof getLoggerModel>;
+    blockModel: ReturnType<typeof getBlockModel>;
+    gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
+    gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
   };
+  logger: ReturnType<typeof createMongooseLogger>;
+};
 
-  const logger = createMongooseLogger(mongooseModels.loggerModel);
+export async function startIndexing({
+  client,
+  resumeIndexing = false,
+  fetchBlockSize = 12n * 5n,
+  mongooseConnection,
+  mongooseModels,
+  logger,
+}: StartIndexingParamsType) {
+  console.log('Migrating Gnosis Pay tokens to database');
 
   console.log('Starting indexing');
 
@@ -202,7 +201,7 @@ export async function startIndexing({
     });
 
     try {
-      const message = `Found ${spendLogs.length} spend logs and ${refundLogs.length} refund logs`;
+      const message = `Found ${spendLogs.length} spend logs, ${refundLogs.length} refund logs, ${gnosisTokenTransferLogs.length} gnosis token transfer logs, and ${gnosisPayRewardDistributionLogs.length} gnosis pay reward distribution logs in #${fromBlockNumber} to #${toBlockNumber}`;
       console.log(message);
       await logger.logDebug({ message });
     } catch (e) {}
@@ -214,6 +213,7 @@ export async function startIndexing({
         weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
         weekMetricsSnapshotModel: mongooseModels.weekMetricsSnapshotModel,
         gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
+        gnosisTokenBalanceSnapshotModel: mongooseModels.gnosisTokenBalanceSnapshotModel,
       },
       logs: [...spendLogs, ...refundLogs],
       logger,
@@ -233,14 +233,12 @@ export async function startIndexing({
     });
 
     await handleGnosisPayRewardsDistributionLogs({
-      client,
       mongooseModels: {
         gnosisPayRewardDistributionModel: mongooseModels.gnosisPayRewardDistributionModel,
         gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
       },
       logs: gnosisPayRewardDistributionLogs,
       logger,
-      socketIoServer,
     });
 
     // Move to the next block range
@@ -368,10 +366,8 @@ async function handleGnosisPayRewardsDistributionLogs({
   logs,
 }: {
   logs: Awaited<ReturnType<typeof getGnosisPayRewardDistributionLogs>>;
-  client: PublicClient<Transport, typeof gnosis>;
   mongooseModels: Parameters<typeof processGnosisPayRewardDistributionLog>[0]['mongooseModels'];
   logger: ReturnType<typeof createMongooseLogger>;
-  socketIoServer: ReturnType<typeof buildSocketIoServer>;
 }) {
   for (const log of logs) {
     try {

@@ -3,7 +3,7 @@ import {
   createMongooseLogger,
   getGnosisPayTransactionModel,
   getWeekCashbackRewardModel,
-  toDocumentId,
+  createWeekCashbackRewardDocumentId,
   createWeekCashbackRewardDocument,
   createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
@@ -95,7 +95,7 @@ export function addHttpRoutes({
     try {
       const safeAddress = addressSchema.parse(req.params.safeAddress);
       const week = req.params.week as ReturnType<typeof toWeekDataId>;
-      const documentId = toDocumentId(week, safeAddress);
+      const documentId = createWeekCashbackRewardDocumentId(week, safeAddress);
 
       const weekCashbackRewardSnapshot = await weekCashbackRewardModel
         .findById(documentId)
