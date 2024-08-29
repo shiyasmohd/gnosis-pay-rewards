@@ -17,15 +17,15 @@ type CalculateWeekRewardCommonParams = {
   /**
    * The net USD volume for the week
    */
-  netUsdVolume: number;
+  weekUsdVolume: number;
   /**
    * The GNO balance for the week
    */
   gnoBalance: number;
   /**
-   * Month-to-date USD volume
+   * Four weeks USD volume
    */
-  monthToDateUsdVolume: number;
+  fourWeeksUsdVolume: number;
 };
 
 /**
@@ -35,20 +35,20 @@ type CalculateWeekRewardCommonParams = {
 export function calculateWeekRewardAmount({
   gnoUsdPrice,
   isOgNftHolder,
-  netUsdVolume,
+  weekUsdVolume,
   gnoBalance,
-  monthToDateUsdVolume,
+  fourWeeksUsdVolume,
 }: CalculateWeekRewardCommonParams): number {
   if (gnoUsdPrice <= 0) {
     throw new Error('gnoUsdPrice must be greater than 0');
   }
 
   // If the month-to-date USD volume is greater than the threshold, the user is eligible for the OG NFT holder reward
-  if (monthToDateUsdVolume >= MONTH_TO_DATE_USD_VOLUME_THRESHOLD) {
+  if (fourWeeksUsdVolume >= MONTH_TO_DATE_USD_VOLUME_THRESHOLD) {
     return 0;
   }
 
-  if (netUsdVolume <= 0 || gnoBalance === 0) {
+  if (weekUsdVolume <= 0 || gnoBalance === 0) {
     return 0;
   }
 
@@ -72,7 +72,7 @@ export function calculateWeekRewardAmount({
   }
 
   // Calculate GNO rewards
-  const gnoRewards = ((rewardPercentage / 100) * netUsdVolume) / gnoUsdPrice;
+  const gnoRewards = ((rewardPercentage / 100) * weekUsdVolume) / gnoUsdPrice;
 
   return gnoRewards;
 }
