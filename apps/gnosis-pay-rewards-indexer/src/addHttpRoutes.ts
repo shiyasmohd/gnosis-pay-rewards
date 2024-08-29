@@ -9,12 +9,13 @@ import {
   GnosisPayRewardDistributionDocumentFieldsType,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
-import { Address, isAddress } from 'viem';
-import { buildExpressApp } from './server.js';
 import dayjs from 'dayjs';
 import dayjsUtc from 'dayjs/plugin/utc.js';
-import { IndexerStateAtomType } from './state.js';
+import { isAddress } from 'viem';
 import { z, ZodError } from 'zod';
+
+import { buildExpressApp } from './server.js';
+import { IndexerStateAtomType } from './state.js';
 
 dayjs.extend(dayjsUtc);
 

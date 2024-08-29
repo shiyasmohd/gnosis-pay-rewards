@@ -169,9 +169,7 @@ export async function startIndexing({
     try {
       const message = `Fetching logs from #${fromBlockNumber} to #${toBlockNumber}`;
       console.log(message);
-      await logger.logDebug({
-        message,
-      });
+      await logger.logDebug({ message });
     } catch (e) {}
 
     const spendLogs = await getGnosisPaySpendLogs({
@@ -205,12 +203,8 @@ export async function startIndexing({
 
     try {
       const message = `Found ${spendLogs.length} spend logs and ${refundLogs.length} refund logs`;
-
       console.log(message);
-
-      await logger.logDebug({
-        message,
-      });
+      await logger.logDebug({ message });
     } catch (e) {}
 
     await handleBatchLogs({
@@ -238,6 +232,17 @@ export async function startIndexing({
       socketIoServer,
     });
 
+    await handleGnosisPayRewardsDistributionLogs({
+      client,
+      mongooseModels: {
+        gnosisPayRewardDistributionModel: mongooseModels.gnosisPayRewardDistributionModel,
+        gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
+      },
+      logs: gnosisPayRewardDistributionLogs,
+      logger,
+      socketIoServer,
+    });
+
     // Move to the next block range
     const nextFromBlockNumber = fromBlockNumber + fetchBlockSize;
     const nextToBlockNumber = clampToBlockRange(nextFromBlockNumber, latestBlockNumber, fetchBlockSize);
@@ -257,13 +262,11 @@ export async function startIndexing({
     if (distanceToLatestBlockNumber <= 10n) {
       const targetBlockNumber = toBlockNumber + fetchBlockSize + 3n;
 
-      const message = `Waiting for #${targetBlockNumber} to continue indexing`;
-
-      console.log(message);
-
-      await logger.logDebug({
-        message,
-      });
+      try {
+        const message = `Waiting for #${targetBlockNumber} to continue indexing`;
+        console.log(message);
+        await logger.logDebug({ message });
+      } catch (e) {}
 
       await waitForBlock({
         client,
@@ -304,9 +307,7 @@ async function handleBatchLogs({
           mongooseModels,
         });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         if (data !== null) {
           socketIoServer.emit('newSpendTransaction', data.gnosisPayTransaction);
@@ -320,9 +321,7 @@ async function handleBatchLogs({
           mongooseModels,
         });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         if (data !== null) {
           socketIoServer.emit('newRefundTransaction', data.gnosisPayTransaction);
@@ -331,20 +330,7 @@ async function handleBatchLogs({
         }
       }
     } catch (e) {
-      const error = e as Error;
-
-      if (error.cause !== 'LOG_ALREADY_PROCESSED') {
-        console.error(error);
-      }
-
-      logger.log({
-        level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
-        message: `Error processing ${log.eventName} log (${log.transactionHash}) at #${log.blockNumber} with error: ${error.message}`,
-        metadata: {
-          originalError: error.message,
-          log,
-        },
-      });
+      handleError(logger, e as Error, log as any);
     }
   }
 }
@@ -369,30 +355,14 @@ async function handleGnosisTokenTransferLogs({
         mongooseModels,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
     } catch (e) {
-      const error = e as Error;
-
-      if (error.cause !== 'LOG_ALREADY_PROCESSED') {
-        console.error(error);
-      }
-
-      logger.log({
-        level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
-        message: `Error processing ${log.eventName} log (${log.transactionHash}) at #${log.blockNumber} with error: ${error.message}`,
-        metadata: {
-          originalError: error.message,
-          log,
-        },
-      });
+      handleError(logger, e as Error, log as any);
     }
   }
 }
 
 async function handleGnosisPayRewardsDistributionLogs({
-  client,
   mongooseModels,
   logger,
   logs,
@@ -409,21 +379,29 @@ async function handleGnosisPayRewardsDistributionLogs({
         log,
         mongooseModels,
       });
+
+      if (error) throw error;
     } catch (e) {
-      const error = e as Error;
-
-      if (error.cause !== 'LOG_ALREADY_PROCESSED') {
-        console.error(error);
-      }
-
-      logger.log({
-        level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
-        message: `Error processing ${log.eventName} log (${log.transactionHash}) at #${log.blockNumber} with error: ${error.message}`,
-        metadata: {
-          originalError: error.message,
-          log,
-        },
-      });
+      handleError(logger, e as Error, log as any);
     }
   }
+}
+
+function handleError(
+  logger: ReturnType<typeof createMongooseLogger>,
+  error: Error,
+  logish: { eventName: string; transactionHash: string; blockNumber: number }
+) {
+  if (error.cause !== 'LOG_ALREADY_PROCESSED') {
+    console.error(error);
+  }
+
+  logger.log({
+    level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
+    message: `Error processing ${logish.eventName} log (${logish.transactionHash}) at #${logish.blockNumber} with error: ${error.message}`,
+    metadata: {
+      originalError: error.message,
+      log: logish,
+    },
+  });
 }
