@@ -73,10 +73,10 @@ const modelName = 'WeekCashbackReward' as const;
  * @returns `2024-03-01/0x123456789abcdef123456789abcdef123456789ab`
  *
  * @example
- * const docId = toDocumentId('2024-03-01', '0x123456789abcdef123456789abcdef123456789ab')
- * docId === '2024-03-01/0x123456789abcdef123456789abcdef123456789ab'
+ * const docId = createWeekCashbackRewardDocumentId('2024-03-01', '0x123456789abcdef123456789abcdef123456789ab')
+ * // '2024-03-01/0x123456789abcdef123456789abcdef123456789ab'
  */
-export function toDocumentId(week: typeof weekIdFormat, address: Address): `${WeekIdFormatType}/${Address}` {
+export function createWeekCashbackRewardDocumentId(week: typeof weekIdFormat, address: Address): `${WeekIdFormatType}/${Address}` {
   return `${week}/${address.toLowerCase() as Address}`;
 }
 
@@ -120,7 +120,7 @@ export async function createWeekCashbackRewardDocument<Populated extends boolean
     : HydratedDocument<WeekCashbackRewardDocumentFieldsType_Unpopulated>
 > {
   address = address.toLowerCase() as Address;
-  const documentId = toDocumentId(week, address);
+  const documentId = createWeekCashbackRewardDocumentId(week, address);
 
   const query = weekCashbackRewardModel.findById(documentId, {}, { session });
 
