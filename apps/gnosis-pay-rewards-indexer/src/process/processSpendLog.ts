@@ -370,11 +370,11 @@ async function saveToDatabase(
 
   // Calculate the estimated reward for the week
   const estimatedReward = calculateWeekRewardAmount({
+    fourWeeksUsdVolume: 0, // ignored in the indexer
+    gnoBalance: weekCashbackRewardOldSnapshot.minGnoBalance,
     gnoUsdPrice,
-    netUsdVolume: weekCashbackRewardOldSnapshot.netUsdVolume,
-    gnoBalance,
     isOgNftHolder: gnosisPaySafeAddressPayload.isOg,
-    monthToDateUsdVolume: 0,
+    weekUsdVolume: weekCashbackRewardOldSnapshot.netUsdVolume,
   });
 
   // Calculate the estimated reward for the week
