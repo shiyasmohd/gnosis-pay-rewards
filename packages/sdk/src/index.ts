@@ -11,3 +11,4 @@ export * from './database/weekReward';
 export * from './database/gnosisTokenBalanceSnapshot';
 export * from './socket';
 export * from './oracle';
+export * from './getTokenBalanceOf';
