@@ -6,6 +6,8 @@ import {
   getTokenModel,
   getGnosisPaySafeAddressModel,
   getGnosisPayTransactionModel,
+  createGnosisPayRewardDistributionModel,
+  createGnosisTokenBalanceSnapshotModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { privateKeyToAccount } from 'viem/accounts';
 import { PublicClient, Transport } from 'viem';
@@ -31,6 +33,8 @@ export async function startApp({}: { client: PublicClient<Transport, typeof gnos
   getTokenModel(mongooseConnection);
   getGnosisPaySafeAddressModel(mongooseConnection);
   getGnosisPayTransactionModel(mongooseConnection);
+  createGnosisPayRewardDistributionModel(mongooseConnection);
+  createGnosisTokenBalanceSnapshotModel(mongooseConnection);
 
   const proposerAccount = privateKeyToAccount(GNOSIS_SAFE_ADDRESS_PROPOSER_PRIVATE_KEY);
 

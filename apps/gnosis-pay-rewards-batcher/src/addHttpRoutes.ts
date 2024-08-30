@@ -11,6 +11,7 @@ import {
   circleUsdcToken,
   getOraclePriceAtBlockNumber,
   SerializableErc20TokenType,
+  GnosisTokenBalanceSnapshotDocumentType,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   getWeekCashbackRewardModel,
@@ -98,6 +99,11 @@ export function addHttpRoutes({
             transactionHash: 1,
             gnoBalance: 1,
             type: 1,
+          })
+          .populate<{ gnoBalanceSnapshots: GnosisTokenBalanceSnapshotDocumentType[] }>('gnoBalanceSnapshots', {
+            blockNumber: 1,
+            blockTimestamp: 1,
+            balance: 1,
           })
           .populate<{ address: GnosisPaySafeAddressDocumentFieldsType_Unpopulated }>(
             'address',
