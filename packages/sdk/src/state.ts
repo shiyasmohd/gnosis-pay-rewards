@@ -1,3 +1,6 @@
+/**
+ * The state of the indexer
+ */
 export type IndexerStateAtomType = {
   /**
    * Start block to index from

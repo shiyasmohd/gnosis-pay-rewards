@@ -1,4 +1,8 @@
-import { GnosisPayTransactionFieldsType_Unpopulated, toWeekDataId } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  GnosisPayTransactionFieldsType_Unpopulated,
+  toWeekDataId,
+  IndexerStateAtomType,
+} from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   createMongooseLogger,
   getGnosisPayTransactionModel,
@@ -16,7 +20,6 @@ import { isAddress } from 'viem';
 import { z, ZodError } from 'zod';
 
 import { buildExpressApp } from './server.js';
-import { IndexerStateAtomType } from './state.js';
 
 dayjs.extend(dayjsUtc);
 

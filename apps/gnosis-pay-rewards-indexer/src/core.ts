@@ -1,4 +1,4 @@
-import { gnosisPayStartBlock, bigMath, gnosisPayTokens } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { gnosisPayStartBlock, bigMath, gnosisPayTokens, IndexerStateAtomType } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   getGnosisPayTransactionModel,
   getTokenModel,
@@ -26,7 +26,6 @@ import { waitForBlock } from './waitForBlock.js';
 
 import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
-import { IndexerStateAtomType } from './state.js';
 import { processRefundLog, processSpendLog } from './process/processSpendLog.js';
 import { processGnosisTokenTransferLog } from './process/processGnosisTokenTransferLog.js';
 import { processGnosisPayRewardDistributionLog } from './process/processGnosisPayRewardDistributionLog.js';
