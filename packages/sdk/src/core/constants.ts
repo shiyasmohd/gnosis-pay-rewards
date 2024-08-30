@@ -25,7 +25,7 @@ export const gnosisPayRewardDistributionSafeAddress = '0xCdF50be9061086e2eCfE6e4
 
 /**
  * Gnosis Pay start block, use this for indexing Gnosis Pay events.
- * This block https://gnosisscan.io/block/35652320
- * Aug-25-2024 12:00:40 AM +UTC
+ * This block https://gnosisscan.io/block/35536000
+ * Aug-18-2024 12:00:35 AM +UTC
  */
-export const gnosisPayStartBlock = 35_652_320n;
+export const gnosisPayStartBlock = 35_536_000n;
