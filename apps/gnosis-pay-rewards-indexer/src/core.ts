@@ -139,6 +139,7 @@ export async function startIndexing({
       gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
       weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
       gnosisPayRewardDistributionModel: mongooseModels.gnosisPayRewardDistributionModel,
+      weekMetricsSnapshotModel: mongooseModels.weekMetricsSnapshotModel,
     },
     logger,
     getIndexerState() {

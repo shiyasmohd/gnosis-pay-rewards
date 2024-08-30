@@ -7,6 +7,7 @@ import {
   createWeekCashbackRewardDocument,
   createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
+  getWeekMetricsSnapshotModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
 import dayjs from 'dayjs';
@@ -29,11 +30,17 @@ export function addHttpRoutes({
     gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
     weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
     gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
+    weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
   };
   logger: ReturnType<typeof createMongooseLogger>;
   getIndexerState: () => IndexerStateAtomType;
 }) {
-  const { gnosisPayTransactionModel, weekCashbackRewardModel, gnosisPayRewardDistributionModel } = mongooseModels;
+  const {
+    gnosisPayTransactionModel,
+    weekCashbackRewardModel,
+    gnosisPayRewardDistributionModel,
+    weekMetricsSnapshotModel,
+  } = mongooseModels;
 
   expressApp.get<'/'>('/', (_, res) => {
     return res.send({
@@ -62,6 +69,25 @@ export function addHttpRoutes({
       status: 'ok',
       statusCode: 200,
     });
+  });
+
+  expressApp.get<'/weeks'>('/weeks', async (_, res) => {
+    try {
+      const weeksArray = await weekMetricsSnapshotModel.find({}, { date: 1 }).lean();
+
+      const weeksArrayWithIds = weeksArray.map((week) => ({
+        id: week.date.toString(),
+        weekId: week.date.toString(),
+      }));
+
+      return res.json({
+        data: weeksArrayWithIds,
+        status: 'ok',
+        statusCode: 200,
+      });
+    } catch (error) {
+      return returnServerError(res, error as Error);
+    }
   });
 
   expressApp.get<'/cashbacks/:safeAddress'>('/cashbacks/:safeAddress', async (req, res) => {
