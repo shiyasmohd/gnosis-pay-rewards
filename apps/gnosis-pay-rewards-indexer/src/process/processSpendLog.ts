@@ -209,7 +209,7 @@ export async function processRefundLog({
         gnoUsdPrice,
         estiamtedGnoRewardAmount: 0,
         safeAddress,
-        type: GnosisPayTransactionType.Spend,
+        type: GnosisPayTransactionType.Refund,
         transactionHash,
         weekId,
       },
