@@ -9,6 +9,9 @@ import { WeekIdFormatType, weekIdFormat } from '../database/weekData';
 import { GnosisPayTransactionFieldsType_Unpopulated } from '../database/spendTransaction';
 import { dayjsUtc } from './dayjsUtc';
 import { gnosisTokenBalanceSnapshotModelName } from './gnosisTokenBalanceSnapshot';
+import { mongooseSchemaAddressField } from './sharedSchemaFields';
+import { gnosisPaySafeAddressModelName } from './gnosisPaySafeAddress';
+import { gnosisPayTransactionModelName } from './gnosisPayTransaction';
 
 const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType_Unpopulated>(
   {
@@ -22,8 +25,10 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
       },
     },
     address: {
-      type: String,
+      ...mongooseSchemaAddressField,
+      ref: gnosisPaySafeAddressModelName,
       required: true,
+      alias: 'safe',
     },
     week: {
       type: String,
@@ -51,7 +56,7 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
     transactions: [
       {
         type: String,
-        ref: 'GnosisPayTransaction',
+        ref: gnosisPayTransactionModelName,
       },
     ],
     gnoBalanceSnapshots: [

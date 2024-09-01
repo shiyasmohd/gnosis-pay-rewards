@@ -13,3 +13,4 @@ export * from './socket';
 export * from './oracle';
 export * from './getTokenBalanceOf';
 export * from './state';
+export * from './getTokenPricesAtBlockNumber';
