@@ -387,6 +387,7 @@ async function saveToDatabase(
 
   // Add the spend transaction to the week cashback reward document
   weekRewardDocument.transactions.push(gnosisPayTransactionDocument._id);
+  weekRewardDocument.gnoBalanceSnapshots.push(gnosisTokenBalanceSnapshotDocument._id);
 
   if (!weekRewardDocument.maxGnoBalance) {
     weekRewardDocument.maxGnoBalance = gnoBalance;

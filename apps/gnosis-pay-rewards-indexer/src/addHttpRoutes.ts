@@ -2,6 +2,9 @@ import {
   GnosisPayTransactionFieldsType_Unpopulated,
   toWeekDataId,
   IndexerStateAtomType,
+  WeekIdFormatType,
+  GnosisTokenBalanceSnapshotDocumentType,
+  isValidWeekDataId,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   createMongooseLogger,
@@ -12,6 +15,7 @@ import {
   createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
   getWeekMetricsSnapshotModel,
+  GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
 import dayjs from 'dayjs';
@@ -72,6 +76,46 @@ export function addHttpRoutes({
       status: 'ok',
       statusCode: 200,
     });
+  });
+
+  expressApp.get<'/week-snapshots/:weekId'>('/week-snapshots/:weekId', async (req, res) => {
+    try {
+      const weekId = weekIdSchema.parse(req.params.weekId) as WeekIdFormatType;
+      const _query = { week: weekId };
+      const weekSafeSnapshot = await weekCashbackRewardModel
+        .find(_query)
+        .populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions', {
+          amountUsd: 1,
+          amountToken: 1,
+          amount: 1,
+          transactionHash: 1,
+          gnoBalance: 1,
+          type: 1,
+        })
+        .populate<{ gnoBalanceSnapshots: GnosisTokenBalanceSnapshotDocumentType[] }>('gnoBalanceSnapshots', {
+          blockNumber: 1,
+          blockTimestamp: 1,
+          balance: 1,
+        })
+        .populate<{ address: GnosisPaySafeAddressDocumentFieldsType_Unpopulated }>('address', { isOg: 1 })
+        .lean();
+
+      // Replace address with safe key
+      const weekSafeSnapshotWithSafeKey = weekSafeSnapshot.map((safeSnapshot) => {
+        (safeSnapshot as any).safe = safeSnapshot.address;
+        delete (safeSnapshot as any).address;
+        return safeSnapshot;
+      });
+
+      return res.json({
+        data: weekSafeSnapshotWithSafeKey,
+        status: 'ok',
+        statusCode: 200,
+        _query,
+      });
+    } catch (error) {
+      return returnServerError(res, error as Error);
+    }
   });
 
   expressApp.get<'/weeks'>('/weeks', async (_, res) => {
@@ -239,3 +283,23 @@ function returnServerError(res: Response, error?: Error) {
 const addressSchema = z.string().refine(isAddress, {
   message: 'Invalid EVM address',
 });
+
+const weekIdSchema = z
+  .string()
+  .refine(
+    (value: string) => {
+      return isValidWeekDataId(value);
+    },
+    {
+      message: 'Invalid week date format',
+    }
+  )
+  .refine(
+    (value: string) => {
+      const isSunday = dayjs(value).day() === 0;
+      return isSunday;
+    },
+    {
+      message: 'Week date must be a Sunday',
+    }
+  );
