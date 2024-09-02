@@ -5,7 +5,7 @@ import { GnosisTokenBalanceSnapshotDocumentType } from './gnosisTokenBalanceSnap
 
 export type WeekCashbackRewardDocumentFieldsTypeBase<TransactionsFieldType, GnosisTokenBalanceSnapshotFieldType> = {
   _id: `${WeekIdFormatType}/${Address}`; // e.g. 2024-03-01/0x123456789abcdef123456789abcdef123456789ab
-  address: Address;
+  safe: Address;
   week: WeekIdFormatType;
   /**
    * The estimated reward for the week
