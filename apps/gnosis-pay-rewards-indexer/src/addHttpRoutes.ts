@@ -16,14 +16,19 @@ import {
   GnosisPayRewardDistributionDocumentFieldsType,
   getWeekMetricsSnapshotModel,
   GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
+  getGnosisPaySafeAddressModel,
+  createGnosisPaySafeAddressDocument,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
 import dayjs from 'dayjs';
 import dayjsUtc from 'dayjs/plugin/utc.js';
-import { isAddress } from 'viem';
+import { Address, isAddress, PublicClient, Transport } from 'viem';
+import { gnosis } from 'viem/chains';
 import { z, ZodError } from 'zod';
 
 import { buildExpressApp } from './server.js';
+import { getGnosisPaySafeOwners } from './gp/getGnosisPaySafeOwners.js';
+import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
 
 dayjs.extend(dayjsUtc);
 
@@ -31,18 +36,22 @@ export function addHttpRoutes({
   expressApp,
   mongooseModels,
   getIndexerState,
+  client,
 }: {
   expressApp: ReturnType<typeof buildExpressApp>;
   mongooseModels: {
+    gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
     gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
     weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
     gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
     weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
   };
+  client: PublicClient<Transport, typeof gnosis>;
   logger: ReturnType<typeof createMongooseLogger>;
   getIndexerState: () => IndexerStateAtomType;
 }) {
   const {
+    gnosisPaySafeAddressModel,
     gnosisPayTransactionModel,
     weekCashbackRewardModel,
     gnosisPayRewardDistributionModel,
@@ -139,17 +148,58 @@ export function addHttpRoutes({
 
   expressApp.get<'/cashbacks/:safeAddress'>('/cashbacks/:safeAddress', async (req, res) => {
     try {
-      const safeAddress = addressSchema.parse(req.params.safeAddress);
+      const safeAddress = addressSchema.parse(req.params.safeAddress).toLowerCase() as Address;
 
       const week = toWeekDataId(dayjs.utc().unix());
-      const weekCashbackRewardDocument = await createWeekCashbackRewardDocument({
+      const weekRewardDocument = await createWeekCashbackRewardDocument({
         address: safeAddress,
         populateTransactions: true,
         weekCashbackRewardModel,
         week,
       });
 
-      const weekCashbackRewardJson = weekCashbackRewardDocument.toJSON();
+      // Try to populate the safe info
+      let weekRewardDocumentWithSafe = await weekCashbackRewardModel.findById(weekRewardDocument.id).populate<{
+        safe: GnosisPaySafeAddressDocumentFieldsType_Unpopulated;
+      }>('safe', {
+        isOg: 1,
+        address: 1,
+      });
+
+      // If the safe info is null, try to fetch it from the onchain data
+      if (weekRewardDocumentWithSafe!.safe === null) {
+        const { data: safeOwners, error } = await getGnosisPaySafeOwners({
+          safeAddress,
+          client,
+        });
+
+        // zero owners mean that this address is likely not a GP Safe
+        if (error !== null || safeOwners.length === 0) {
+          throw new CustomError('No owners found for this safe');
+        }
+
+        // Find the OG NFT status
+        const isOg = (await hasGnosisPayOgNft(client, safeOwners)).some(Boolean);
+
+        // Create a new GnosisPaySafeAddressDocument
+        await createGnosisPaySafeAddressDocument(
+          {
+            safeAddress,
+            owners: safeOwners,
+            isOg,
+          },
+          gnosisPaySafeAddressModel
+        );
+
+        // Populate the safe info now that we have it
+        weekRewardDocumentWithSafe = await weekRewardDocument.populate('safe', {
+          isOg: 1,
+          address: 1,
+        });
+      }
+
+      // Final data to return to the client
+      const weekCashbackRewardJson = weekRewardDocumentWithSafe!.toJSON();
 
       return res.json({
         data: weekCashbackRewardJson,
@@ -258,6 +308,8 @@ export function addHttpRoutes({
   return expressApp;
 }
 
+class CustomError extends Error {}
+
 /**
  * @param res Express response object
  * @param error Error object
@@ -269,6 +321,15 @@ function returnServerError(res: Response, error?: Error) {
       error: error.message,
       status: 'error',
       statusCode: 400,
+    });
+  }
+
+  if (error instanceof CustomError) {
+    return res.status(500).json({
+      error: error.message,
+      status: 'error',
+      errorStack: error?.stack,
+      statusCode: 500,
     });
   }
 
