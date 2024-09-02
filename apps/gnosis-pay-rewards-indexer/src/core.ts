@@ -80,9 +80,7 @@ export async function startIndexing({
 
   // Initialize the latest block
   const latestBlockInitial = await client.getBlock({ includeTransactions: false });
-  // default value is June 29th, 2024. Otherwise, we fetch the latest block from the indexed pending rewards
-  // const fromBlockNumberInitial = gnosisPayStartBlock;
-  const fromBlockNumberInitial = 35790982n;
+  const fromBlockNumberInitial = gnosisPayStartBlock;
   const toBlockNumberInitial = clampToBlockRange(fromBlockNumberInitial, latestBlockInitial.number, fetchBlockSize);
 
   const indexerStateAtom = atom<IndexerStateAtomType>({
