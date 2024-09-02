@@ -65,13 +65,21 @@ export async function startIndexing({
   mongooseModels,
   logger,
 }: StartIndexingParamsType) {
+  const {
+    gnosisPayRewardDistributionModel,
+    gnosisPaySafeAddressModel,
+    gnosisPayTransactionModel,
+    gnosisTokenBalanceSnapshotModel,
+    weekCashbackRewardModel,
+    weekMetricsSnapshotModel,
+  } = mongooseModels;
+
   console.log('Migrating Gnosis Pay tokens to database');
 
   console.log('Starting indexing');
 
   // Initialize the latest block
   const latestBlockInitial = await client.getBlock({ includeTransactions: false });
-  // default value is June 29th, 2024. Otherwise, we fetch the latest block from the indexed pending rewards
   const fromBlockNumberInitial = gnosisPayStartBlock;
   const toBlockNumberInitial = clampToBlockRange(fromBlockNumberInitial, latestBlockInitial.number, fetchBlockSize);
 
@@ -134,11 +142,13 @@ export async function startIndexing({
 
   const restApiServer = addHttpRoutes({
     expressApp: buildExpressApp(),
+    client,
     mongooseModels: {
-      gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
-      weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
-      gnosisPayRewardDistributionModel: mongooseModels.gnosisPayRewardDistributionModel,
-      weekMetricsSnapshotModel: mongooseModels.weekMetricsSnapshotModel,
+      gnosisPaySafeAddressModel,
+      gnosisPayTransactionModel,
+      weekCashbackRewardModel,
+      gnosisPayRewardDistributionModel,
+      weekMetricsSnapshotModel,
     },
     logger,
     getIndexerState() {
@@ -148,8 +158,8 @@ export async function startIndexing({
 
   const socketIoServer = addSocketComms({
     socketIoServer: buildSocketIoServer(restApiServer),
-    gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
-    weekMetricsSnapshotModel: mongooseModels.weekMetricsSnapshotModel,
+    gnosisPayTransactionModel,
+    weekMetricsSnapshotModel,
   });
 
   restApiServer.listen(HTTP_SERVER_PORT, HTTP_SERVER_HOST);
@@ -209,11 +219,11 @@ export async function startIndexing({
     await handleBatchLogs({
       client,
       mongooseModels: {
-        gnosisPayTransactionModel: mongooseModels.gnosisPayTransactionModel,
-        weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
-        weekMetricsSnapshotModel: mongooseModels.weekMetricsSnapshotModel,
-        gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
-        gnosisTokenBalanceSnapshotModel: mongooseModels.gnosisTokenBalanceSnapshotModel,
+        gnosisPayTransactionModel,
+        weekCashbackRewardModel,
+        weekMetricsSnapshotModel,
+        gnosisPaySafeAddressModel,
+        gnosisTokenBalanceSnapshotModel,
       },
       logs: [...spendLogs, ...refundLogs],
       logger,
@@ -223,9 +233,9 @@ export async function startIndexing({
     await handleGnosisTokenTransferLogs({
       client,
       mongooseModels: {
-        gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
-        gnosisTokenBalanceSnapshotModel: mongooseModels.gnosisTokenBalanceSnapshotModel,
-        weekCashbackRewardModel: mongooseModels.weekCashbackRewardModel,
+        gnosisPaySafeAddressModel,
+        gnosisTokenBalanceSnapshotModel,
+        weekCashbackRewardModel,
       },
       logs: gnosisTokenTransferLogs,
       logger,
@@ -234,8 +244,7 @@ export async function startIndexing({
 
     await handleGnosisPayRewardsDistributionLogs({
       mongooseModels: {
-        gnosisPayRewardDistributionModel: mongooseModels.gnosisPayRewardDistributionModel,
-        gnosisPaySafeAddressModel: mongooseModels.gnosisPaySafeAddressModel,
+        gnosisPayRewardDistributionModel,
       },
       logs: gnosisPayRewardDistributionLogs,
       logger,

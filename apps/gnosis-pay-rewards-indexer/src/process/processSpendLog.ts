@@ -304,7 +304,7 @@ async function getTokenUsdPrice(
 }
 
 async function saveToDatabase(
-  gnosispayTransactionPayload: GnosisPayTransactionFieldsType_Unpopulated,
+  transactionPayload: GnosisPayTransactionFieldsType_Unpopulated,
   gnosisPaySafeAddressPayload: GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
   mongooseModels: MongooseConfiguredModels
 ): Promise<ProcessLogFnDataType> {
@@ -315,8 +315,8 @@ async function saveToDatabase(
     gnosisPaySafeAddressModel,
     gnosisTokenBalanceSnapshotModel,
   } = mongooseModels;
-  gnosispayTransactionPayload.safeAddress = gnosispayTransactionPayload.safeAddress.toLowerCase() as Address;
-  gnosispayTransactionPayload.amountToken = gnosispayTransactionPayload.amountToken.toLowerCase() as Address;
+  transactionPayload.safeAddress = transactionPayload.safeAddress.toLowerCase() as Address;
+  transactionPayload.amountToken = transactionPayload.amountToken.toLowerCase() as Address;
   const {
     weekId,
     gnoUsdPrice,
@@ -325,14 +325,14 @@ async function saveToDatabase(
     gnoBalanceRaw,
     blockNumber,
     blockTimestamp,
-  } = gnosispayTransactionPayload;
+  } = transactionPayload;
 
   // Start a session to ensure atomicity
   const mongooseSession = await gnosisPayTransactionModel.startSession();
   mongooseSession.startTransaction();
 
-  const gnosisPayTransactionDocument = await new gnosisPayTransactionModel<GnosisPayTransactionFieldsType_Unpopulated>(
-    gnosispayTransactionPayload
+  const transactionDocument = await new gnosisPayTransactionModel<GnosisPayTransactionFieldsType_Unpopulated>(
+    transactionPayload
   ).save({ session: mongooseSession });
 
   // Update the week cashback reward document
@@ -359,34 +359,28 @@ async function saveToDatabase(
     mongooseSession
   );
 
-  // Check if this is the first transaction for the week
-  // If it is, we need to check if the previous week cashback net volume is in the negative
-  // if it is negative, we need to carry the negative volume over to the new week and offset the positive volume
+  // Initialize the net usd volume field
+  let prevNetUsdVolume = weekRewardDocument.netUsdVolume;
+
+  // If this is the first transaction for the week,
+  // we need to check if the previous week cashback net volume is in the negative
+  // if it is negative, we need to carry the negative volume over to the new week
   if (weekRewardDocument.transactions.length === 0) {
     const prevWeekId = toWeekDataId(dayjs(weekId).subtract(1, 'week').unix());
     const prevDocumentId = createWeekCashbackRewardDocumentId(prevWeekId, safeAddress);
     const previousWeekCashbackReward = await weekCashbackRewardModel.findById(prevDocumentId);
 
-    // Take the previous week's net volume and add it to the current week's net volume
     if (previousWeekCashbackReward !== null && previousWeekCashbackReward.netUsdVolume < 0) {
-      const prevNetUsdVolume = previousWeekCashbackReward.netUsdVolume;
-
-      weekRewardDocument.netUsdVolume =
-        gnosisPayTransactionDocument.type === GnosisPayTransactionType.Spend
-          ? prevNetUsdVolume + gnosisPayTransactionDocument.amountUsd
-          : prevNetUsdVolume - gnosisPayTransactionDocument.amountUsd;
+      prevNetUsdVolume = previousWeekCashbackReward.netUsdVolume;
     }
-  } else {
-    const prevNetUsdVolume = weekRewardDocument.netUsdVolume;
-
-    weekRewardDocument.netUsdVolume =
-      gnosisPayTransactionDocument.type === GnosisPayTransactionType.Spend
-        ? prevNetUsdVolume + gnosisPayTransactionDocument.amountUsd
-        : prevNetUsdVolume - gnosisPayTransactionDocument.amountUsd;
   }
-
+  // Update the net usd volume field
+  weekRewardDocument.netUsdVolume =
+    transactionPayload.type === GnosisPayTransactionType.Spend
+      ? prevNetUsdVolume + transactionPayload.amountUsd
+      : prevNetUsdVolume - transactionPayload.amountUsd;
   // Add the spend transaction to the week cashback reward document
-  weekRewardDocument.transactions.push(gnosisPayTransactionDocument._id);
+  weekRewardDocument.transactions.push(transactionDocument._id);
   weekRewardDocument.gnoBalanceSnapshots.push(gnosisTokenBalanceSnapshotDocument._id);
 
   if (!weekRewardDocument.maxGnoBalance) {
@@ -418,7 +412,7 @@ async function saveToDatabase(
   {
     // All GnosisPay transactions for this safe address
     const allGnosisPayTransactions = [
-      gnosisPayTransactionDocument.toJSON(), // we include this manually this since the document hasn't been saved to the database yet
+      transactionDocument.toJSON(), // we include this manually this since the document hasn't been saved to the database yet
       ...(await gnosisPayTransactionModel.find({ safeAddress }).lean()),
     ];
 
@@ -433,7 +427,7 @@ async function saveToDatabase(
     );
 
     gnosisPaySafeAddressDocument.gnoBalanceSnapshots.push(gnosisTokenBalanceSnapshotDocument._id);
-    gnosisPaySafeAddressDocument.transactions.push(gnosisPayTransactionDocument._id);
+    gnosisPaySafeAddressDocument.transactions.push(transactionDocument._id);
     gnosisPaySafeAddressDocument.netUsdVolume = calculateNetUsdVolume(allGnosisPayTransactions);
     gnosisPaySafeAddressDocument.owners = gnosisPaySafeAddressPayload.owners;
 
@@ -449,7 +443,7 @@ async function saveToDatabase(
     mongooseSession
   );
   // Add the spend transaction to the week metrics snapshot
-  weekMetricsOldSnapshot.transactions.push(gnosisPayTransactionDocument._id);
+  weekMetricsOldSnapshot.transactions.push(transactionDocument._id);
   const weekMetricsNewSnapshot = await weekMetricsOldSnapshot.save({ session: mongooseSession });
 
   await mongooseSession.commitTransaction();
@@ -457,7 +451,7 @@ async function saveToDatabase(
 
   // Manually populate the spentToken and safeAddress fields
   const gnosisPayTransactionJsonData: GnosisPayTransactionFieldsType_Populated = (
-    await gnosisPayTransactionDocument.populate('amountToken')
+    await transactionDocument.populate('amountToken')
   ).toJSON();
 
   return {

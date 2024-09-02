@@ -1,5 +1,4 @@
 import {
-  getGnosisPaySafeAddressModel,
   createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
@@ -8,7 +7,6 @@ import { Address, formatUnits, isAddressEqual } from 'viem';
 import { getGnosisPayRewardDistributionLogs } from '../gp/getGnosisPayRewardDistributionLogs.js';
 
 type MongooseModels = {
-  gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
   gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
 };
 
