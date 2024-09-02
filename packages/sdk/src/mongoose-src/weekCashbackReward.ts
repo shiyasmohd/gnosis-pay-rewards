@@ -24,11 +24,10 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
         return isoWeek.match(/^\d{4}-\d{2}-\d{2}$/) !== null && isAddress(address);
       },
     },
-    address: {
+    safe: {
       ...mongooseSchemaAddressField,
       ref: gnosisPaySafeAddressModelName,
       required: true,
-      alias: 'safe',
     },
     week: {
       type: String,
@@ -129,24 +128,24 @@ export async function createWeekCashbackRewardDocument<Populated extends boolean
 
   const query = weekCashbackRewardModel.findById(documentId, {}, { session });
 
-  if (populateTransactions) {
+  if (populateTransactions === true) {
     query.populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions');
   }
 
   const weekCashbackRewardDocument = await query.exec();
 
   if (weekCashbackRewardDocument === null) {
-    const newDoc = await new weekCashbackRewardModel({
+    return new weekCashbackRewardModel<WeekCashbackRewardDocumentFieldsType_Unpopulated>({
       _id: documentId,
-      address,
+      safe: address,
       week,
-      amount: 0,
       netUsdVolume: 0,
+      maxGnoBalance: 0,
+      minGnoBalance: 0,
+      estimatedReward: 0,
       transactions: [],
       gnoBalanceSnapshots: [],
-    }).save({ session });
-
-    return newDoc as any;
+    }).save({ session }) as any;
   }
 
   return weekCashbackRewardDocument as any;
