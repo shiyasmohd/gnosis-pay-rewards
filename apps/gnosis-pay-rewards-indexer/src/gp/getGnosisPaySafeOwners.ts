@@ -22,16 +22,13 @@ export async function getGnosisPaySafeOwners({
   blockNumber?: bigint;
 }): Promise<ConditionalReturnType<true, Address[], Error> | ConditionalReturnType<false, Address[], Error>> {
   try {
-    // Find the Delay
-    const [modules] = await client.readContract({
-      address: safeAddress,
-      abi,
-      functionName: 'getModulesPaginated',
-      args: [sentientAddress, 1n],
+    // The first module is the Delay module
+    const modules = await getGnosisPaySafeModules({
+      client,
+      safeAddress,
       blockNumber,
     });
 
-    // The first module is the Delay module
     const [delayModuleAddress] = modules;
 
     // The list of owners are stored in the Delay module
@@ -52,6 +49,27 @@ export async function getGnosisPaySafeOwners({
       error: e as Error,
     };
   }
+}
+
+export async function getGnosisPaySafeModules({
+  client,
+  safeAddress,
+  blockNumber,
+}: {
+  safeAddress: Address;
+  client: PublicClient<Transport, typeof gnosis>;
+  blockNumber?: bigint;
+}) {
+  // Find the Delay
+  const [modules] = await client.readContract({
+    address: safeAddress,
+    abi,
+    functionName: 'getModulesPaginated',
+    args: [sentientAddress, 100n],
+    blockNumber,
+  });
+
+  return modules as Address[];
 }
 
 const abi = [

@@ -144,6 +144,7 @@ export async function startIndexing({
     expressApp: buildExpressApp(),
     client,
     mongooseModels: {
+      gnosisTokenBalanceSnapshotModel,
       gnosisPaySafeAddressModel,
       gnosisPayTransactionModel,
       weekCashbackRewardModel,

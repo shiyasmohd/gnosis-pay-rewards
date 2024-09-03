@@ -18,6 +18,7 @@ import {
   GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
   getGnosisPaySafeAddressModel,
   createGnosisPaySafeAddressDocument,
+  createGnosisTokenBalanceSnapshotModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
 import dayjs from 'dayjs';
@@ -26,9 +27,11 @@ import { Address, isAddress, PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
 import { z, ZodError } from 'zod';
 
-import { buildExpressApp } from './server.js';
+import { takeGnosisTokenBalanceSnapshot } from './process/processGnosisTokenTransferLog.js';
 import { getGnosisPaySafeOwners } from './gp/getGnosisPaySafeOwners.js';
+import { isGnosisPaySafeAddress } from './gp/isGnosisPaySafeAddress.js';
 import { hasGnosisPayOgNft } from './gp/hasGnosisPayOgNft.js';
+import { buildExpressApp } from './server.js';
 
 dayjs.extend(dayjsUtc);
 
@@ -40,6 +43,7 @@ export function addHttpRoutes({
 }: {
   expressApp: ReturnType<typeof buildExpressApp>;
   mongooseModels: {
+    gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
     gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
     gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
     weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
@@ -51,6 +55,7 @@ export function addHttpRoutes({
   getIndexerState: () => IndexerStateAtomType;
 }) {
   const {
+    gnosisTokenBalanceSnapshotModel,
     gnosisPaySafeAddressModel,
     gnosisPayTransactionModel,
     weekCashbackRewardModel,
@@ -151,23 +156,47 @@ export function addHttpRoutes({
       const safeAddress = addressSchema.parse(req.params.safeAddress).toLowerCase() as Address;
 
       const week = toWeekDataId(dayjs.utc().unix());
-      const weekRewardDocument = await createWeekCashbackRewardDocument({
-        address: safeAddress,
-        populateTransactions: true,
-        weekCashbackRewardModel,
-        week,
-      });
+      const documentId = createWeekCashbackRewardDocumentId(week, safeAddress);
 
-      // Try to populate the safe info
-      let weekRewardDocumentWithSafe = await weekCashbackRewardModel.findById(weekRewardDocument.id).populate<{
-        safe: GnosisPaySafeAddressDocumentFieldsType_Unpopulated;
-      }>('safe', {
-        isOg: 1,
-        address: 1,
-      });
+      // Try to find the week reward document
+      let weekRewardSnapshot = await weekCashbackRewardModel
+        .findById(documentId)
+        .populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions')
+        .populate<{ safe: GnosisPaySafeAddressDocumentFieldsType_Unpopulated }>('safe', {
+          isOg: 1,
+          address: 1,
+        });
 
-      // If the safe info is null, try to fetch it from the onchain data
-      if (weekRewardDocumentWithSafe!.safe === null) {
+      // If the week reward document doesn't have any gno balance snapshots, add one
+      if (weekRewardSnapshot === null) {
+        const { isGnosisPaySafe } = await isGnosisPaySafeAddress({
+          address: safeAddress,
+          client,
+          gnosisPaySafeAddressModel,
+        });
+
+        if (isGnosisPaySafe === false) {
+          throw new CustomError('Address is not a Gnosis Safe', {
+            cause: 'NOT_GNOSIS_PAY_SAFE',
+          });
+        }
+
+        const weekRewardDocument = await createWeekCashbackRewardDocument({
+          address: safeAddress,
+          populateTransactions: true,
+          weekCashbackRewardModel,
+          week,
+        });
+
+        // Take a snapshot of the GNO balance
+        await takeGnosisTokenBalanceSnapshot({
+          gnosisTokenBalanceSnapshotModel,
+          weekCashbackRewardModel,
+          gnosisPaySafeAddressModel,
+          safeAddress,
+          client,
+        });
+
         const { data: safeOwners, error } = await getGnosisPaySafeOwners({
           safeAddress,
           client,
@@ -192,14 +221,14 @@ export function addHttpRoutes({
         );
 
         // Populate the safe info now that we have it
-        weekRewardDocumentWithSafe = await weekRewardDocument.populate('safe', {
+        weekRewardSnapshot = await weekRewardDocument.populate('safe', {
           isOg: 1,
           address: 1,
         });
       }
 
       // Final data to return to the client
-      const weekCashbackRewardJson = weekRewardDocumentWithSafe!.toJSON();
+      const weekCashbackRewardJson = weekRewardSnapshot.toJSON();
 
       return res.json({
         data: weekCashbackRewardJson,
@@ -210,6 +239,7 @@ export function addHttpRoutes({
         },
       });
     } catch (error) {
+      console.log(error);
       return returnServerError(res, error as Error);
     }
   });
@@ -223,6 +253,10 @@ export function addHttpRoutes({
       const weekCashbackRewardSnapshot = await weekCashbackRewardModel
         .findById(documentId)
         .populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions')
+        .populate<{ safe: GnosisPaySafeAddressDocumentFieldsType_Unpopulated }>('safe', {
+          isOg: 1,
+          address: 1,
+        })
         .lean();
 
       if (weekCashbackRewardSnapshot === null) {
