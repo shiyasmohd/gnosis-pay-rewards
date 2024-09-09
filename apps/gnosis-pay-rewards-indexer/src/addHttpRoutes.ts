@@ -111,18 +111,11 @@ export function addHttpRoutes({
           blockTimestamp: 1,
           balance: 1,
         })
-        .populate<{ address: GnosisPaySafeAddressDocumentFieldsType_Unpopulated }>('address', { isOg: 1 })
+        .populate<{ safe: { isOg: boolean; _id: Address } }>('safe', { isOg: 1 })
         .lean();
 
-      // Replace address with safe key
-      const weekSafeSnapshotWithSafeKey = weekSafeSnapshot.map((safeSnapshot) => {
-        (safeSnapshot as any).safe = safeSnapshot.address;
-        delete (safeSnapshot as any).address;
-        return safeSnapshot;
-      });
-
       return res.json({
-        data: weekSafeSnapshotWithSafeKey,
+        data: weekSafeSnapshot,
         status: 'ok',
         statusCode: 200,
         _query,
