@@ -34,7 +34,7 @@ export const weekIdFormat = 'YYYY-MM-DD' as const;
  * @param unixTimestamp - The Unix timestamp
  * @returns The week data ID
  */
-export function toWeekDataId(unixTimestamp: number): WeekIdFormatType {
+export function toWeekId(unixTimestamp: number): WeekIdFormatType {
   const weekStart = dayjsCore.unix(unixTimestamp).utc().startOf('week');
   const yyyyMMDD = weekStart.format(weekIdFormat);
 

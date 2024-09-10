@@ -1,7 +1,7 @@
 import { ClientSession, Model, Mongoose, Schema } from 'mongoose';
 import { gnosisPayTransactionModelName } from './gnosisPayTransaction.js';
 import { dayjsUtc } from './dayjsUtc.js';
-import { WeekIdFormatType, WeekSnapshotDocumentFieldsType, toWeekDataId } from '../database/weekData.js';
+import { WeekIdFormatType, WeekSnapshotDocumentFieldsType, toWeekId } from '../database/weekData.js';
 import { isHash } from 'viem';
 
 export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
@@ -52,7 +52,7 @@ export async function createWeekMetricsSnapshotDocument(
     throw new Error('Either unixTimestamp or weekId must be provided, but not both.');
   }
 
-  const yyyyMMDD = weekId ?? toWeekDataId(unixTimestamp!);
+  const yyyyMMDD = weekId ?? toWeekId(unixTimestamp!);
 
   const weekMetricsSnapshotDocument = await weekMetricsSnapshotModel.findOne(
     { date: yyyyMMDD },

@@ -1,5 +1,5 @@
 import { Model, Mongoose, Schema } from 'mongoose';
-import { toWeekDataId, WeekIdFormatType } from '../database/weekData';
+import { toWeekId, WeekIdFormatType } from '../database/weekData';
 import { mongooseSchemaWeekIdField } from './sharedSchemaFields';
 
 export const blockModelName = 'Block' as const;
@@ -34,7 +34,7 @@ const blockSchema = new Schema<BlockDocumentFieldsType>(
   },
   {
     _id: false,
-  }
+  },
 );
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -43,7 +43,7 @@ blockSchema.index({ number: 1 }, { unique: true });
 
 blockSchema.pre('save', function (this: BlockDocumentFieldsType, next) {
   this._id = this.number;
-  this.weekId = toWeekDataId(this.timestamp);
+  this.weekId = toWeekId(this.timestamp);
   next();
 });
 
@@ -59,7 +59,7 @@ export function getBlockModel(mongooseConnection: Mongoose) {
 }
 
 export function saveBlock(block: Omit<BlockDocumentFieldsType, 'weekId' | '_id'>, blockModel: BlockModel) {
-  const weekId = toWeekDataId(block.timestamp);
+  const weekId = toWeekId(block.timestamp);
   return blockModel.create({
     ...block,
     _id: block.number,
