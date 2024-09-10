@@ -51,7 +51,7 @@ export async function getTokenPricesAtBlockNumber({
           ...token,
           price: Number(price.toFixed(2)),
         };
-      })
+      }),
     );
 
     return {

@@ -16,9 +16,9 @@ export const gnosisTokenBalanceSnapshotSchema = new Schema<GnosisTokenBalanceSna
 
           return isAddress(safeAddress) && !isNaN(Number(blockNumber));
         },
-        message: 'Invalid Gnosis Token Balance Snapshot document id: {VALUE}. Expected format: <blockNumber>/<safeAddress>',
+        message:
+          'Invalid Gnosis Token Balance Snapshot document id: {VALUE}. Expected format: <blockNumber>/<safeAddress>',
       },
-
     },
     weekId: mongooseSchemaWeekIdField,
     safe: {
@@ -33,13 +33,13 @@ export const gnosisTokenBalanceSnapshotSchema = new Schema<GnosisTokenBalanceSna
   },
   {
     _id: false,
-  }
+  },
 )
   // composite index
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  .index({ safe: 1, blockNumber: 1 }, { unique: true }).
-  pre('save', function (next) {
+  .index({ safe: 1, blockNumber: 1 }, { unique: true })
+  .pre('save', function (next) {
     this.safe = this.safe.toLowerCase() as Address;
     next();
   });
@@ -52,7 +52,7 @@ type GnosisTokenBalanceSnapshotModel = Model<GnosisTokenBalanceSnapshotDocumentT
  * @param safeAddress the safe address
  * @returns
  */
-export function createGnosisTokenBalanceSnapshotDocumentId(blockNumber: number, safeAddress: Address){
+export function createGnosisTokenBalanceSnapshotDocumentId(blockNumber: number, safeAddress: Address) {
   return `${blockNumber}/${safeAddress.toLowerCase()}` as `${number}/${Address}`;
 }
 
@@ -75,7 +75,7 @@ export function createGnosisTokenBalanceSnapshotModel(mongooseConnection: Mongoo
 export function createGnosisTokenBalanceSnapshotDocument(
   gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>,
   payload: Omit<GnosisTokenBalanceSnapshotDocumentType, '_id'>,
-  session?: ClientSession
+  session?: ClientSession,
 ) {
   const _id = createGnosisTokenBalanceSnapshotDocumentId(payload.blockNumber, payload.safe);
 

@@ -20,7 +20,7 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
 ).index({ date: 1 }, { unique: true });
@@ -46,7 +46,7 @@ type GetOrCreateWeekMetricsSnapshotDocumentParams =
 
 export async function createWeekMetricsSnapshotDocument(
   { weekMetricsSnapshotModel, unixTimestamp, weekId }: GetOrCreateWeekMetricsSnapshotDocumentParams,
-  mongooseSession?: ClientSession
+  mongooseSession?: ClientSession,
 ) {
   if ((unixTimestamp && weekId) || (!unixTimestamp && !weekId)) {
     throw new Error('Either unixTimestamp or weekId must be provided, but not both.');
@@ -57,7 +57,7 @@ export async function createWeekMetricsSnapshotDocument(
   const weekMetricsSnapshotDocument = await weekMetricsSnapshotModel.findOne(
     { date: yyyyMMDD },
     {},
-    { session: mongooseSession }
+    { session: mongooseSession },
   );
 
   if (weekMetricsSnapshotDocument !== null) {
@@ -72,7 +72,7 @@ export async function createWeekMetricsSnapshotDocument(
 }
 
 export async function getCurrentWeekMetricsSnapshotDocument(
-  weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>
+  weekMetricsSnapshotModel: Model<WeekSnapshotDocumentFieldsType>,
 ) {
   return createWeekMetricsSnapshotDocument({
     weekMetricsSnapshotModel,

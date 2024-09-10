@@ -33,7 +33,7 @@ const gnosisPayTokenSchema = new Schema<TokenDocumentFieldsType>(
   {
     _id: false, // Disable the _id field
     timestamps: true,
-  }
+  },
 );
 
 export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocumentFieldsType> {
@@ -52,7 +52,7 @@ export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocument
 export async function saveGnosisPayTokensToDatabase(
   tokenModel: Model<TokenDocumentFieldsType>,
   tokens: SerializableErc20TokenType[],
-  clean = false
+  clean = false,
 ) {
   const mongooseSession = await tokenModel.startSession();
   mongooseSession.startTransaction();
@@ -77,7 +77,7 @@ export async function saveGnosisPayTokensToDatabase(
         (token) =>
           !existingTokens.some((t) => {
             return isAddressEqual(t._id as Address, token._id as Address);
-          })
+          }),
       );
 
     await tokenModel.insertMany(gpTokensWithId, { session: mongooseSession });

@@ -16,7 +16,7 @@ export async function getTokenBalanceOf({
     address: token,
     functionName: 'balanceOf',
     args: [address],
-    blockNumber
+    blockNumber,
   });
 
   return tokenBalanceRaw as bigint;

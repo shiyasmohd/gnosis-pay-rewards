@@ -5,7 +5,6 @@ import { WeekIdFormatType } from './weekData';
 // https://niftyfair.io/gnosis/collection/0x88997988a6a5aaf29ba973d298d276fe75fb69ab/
 // this is where you can mint the OG NFT
 
-
 export enum GnosisPayTransactionType {
   Spend = 'Spend',
   Refund = 'Refund',

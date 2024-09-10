@@ -34,5 +34,7 @@ export type WeekCashbackRewardDocumentFieldsTypeBase<TransactionsFieldType, Gnos
 };
 
 export type WeekCashbackRewardDocumentFieldsType_Unpopulated = WeekCashbackRewardDocumentFieldsTypeBase<string, string>;
-export type WeekCashbackRewardDocumentFieldsType_Populated =
-  WeekCashbackRewardDocumentFieldsTypeBase<GnosisPayTransactionFieldsType_Unpopulated, GnosisTokenBalanceSnapshotDocumentType>;
+export type WeekCashbackRewardDocumentFieldsType_Populated = WeekCashbackRewardDocumentFieldsTypeBase<
+  GnosisPayTransactionFieldsType_Unpopulated,
+  GnosisTokenBalanceSnapshotDocumentType
+>;

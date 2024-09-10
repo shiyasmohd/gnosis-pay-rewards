@@ -29,7 +29,7 @@ const loggerSchema = new Schema<LoggerDocumentFieldsType>(
       required: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const loggerModelName = 'Logger' as const;

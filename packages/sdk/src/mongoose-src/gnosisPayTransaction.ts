@@ -66,7 +66,7 @@ export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsT
   },
   {
     _id: false,
-  }
+  },
 );
 
 type GetTransactionModel = Model<GnosisPayTransactionFieldsType_Unpopulated>;

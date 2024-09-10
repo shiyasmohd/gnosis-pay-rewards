@@ -23,9 +23,10 @@ type GnosisPaySafeAddressDocumentFieldsType = {
 
 export type GnosisPaySafeAddressDocumentFieldsType_Unpopulated = GnosisPaySafeAddressDocumentFieldsType;
 
-export type GnosisPaySafeAddressDocumentFieldsType_WithTransactionsPopulated = GnosisPaySafeAddressDocumentFieldsType & {
-  transactions: GnosisPayTransactionFieldsType_Unpopulated[];
-};
+export type GnosisPaySafeAddressDocumentFieldsType_WithTransactionsPopulated =
+  GnosisPaySafeAddressDocumentFieldsType & {
+    transactions: GnosisPayTransactionFieldsType_Unpopulated[];
+  };
 
 const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFieldsType>({
   _id: mongooseSchemaAddressField,
@@ -73,7 +74,7 @@ export function getGnosisPaySafeAddressModel(mongooseConnection: Mongoose): Gnos
 
   return mongooseConnection.model<GnosisPaySafeAddressDocumentFieldsType>(
     gnosisPaySafeAddressModelName,
-    gnosisPaySafeAddressSchema
+    gnosisPaySafeAddressSchema,
   );
 }
 
@@ -84,14 +85,14 @@ export async function createGnosisPaySafeAddressDocument(
     isOg: boolean;
   },
   gnosisPaySafeAddressModel: Model<GnosisPaySafeAddressDocumentFieldsType>,
-  mongooseSession?: ClientSession
+  mongooseSession?: ClientSession,
 ): Promise<HydratedDocument<GnosisPaySafeAddressDocumentFieldsType>> {
   const safeAddress = payload.safeAddress.toLowerCase() as Address;
 
   const gnosisPaySafeAddressDocument = await gnosisPaySafeAddressModel.findById(
     safeAddress,
     {},
-    { session: mongooseSession }
+    { session: mongooseSession },
   );
 
   if (gnosisPaySafeAddressDocument !== null) {

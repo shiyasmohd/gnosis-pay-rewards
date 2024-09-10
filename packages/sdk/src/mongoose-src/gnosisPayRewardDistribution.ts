@@ -28,14 +28,16 @@ type GnosisPayRewardDistributionModelType = Model<GnosisPayRewardDistributionDoc
  * @param mongooseConnection - The mongoose connection.
  * @returns The model for the GnosisPayRewardDistribution collection.
  */
-export function createGnosisPayRewardDistributionModel(mongooseConnection: Mongoose): GnosisPayRewardDistributionModelType {
-    // Return cached model if it exists
+export function createGnosisPayRewardDistributionModel(
+  mongooseConnection: Mongoose,
+): GnosisPayRewardDistributionModelType {
+  // Return cached model if it exists
   if (mongooseConnection.models[gnosisPayRewardDistributionModelName]) {
     return mongooseConnection.models[gnosisPayRewardDistributionModelName];
   }
 
   return mongooseConnection.model<GnosisPayRewardDistributionDocumentFieldsType>(
     gnosisPayRewardDistributionModelName,
-    gnosisPayRewardDistributionSchema
+    gnosisPayRewardDistributionSchema,
   );
 }
