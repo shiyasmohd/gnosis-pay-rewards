@@ -1,11 +1,11 @@
 import {
   createGnosisTokenBalanceSnapshotDocument,
   createGnosisTokenBalanceSnapshotModel,
-  createWeekCashbackRewardDocument,
+  createWeekRewardsSnapshotDocument,
   getGnosisPaySafeAddressModel,
   getWeekCashbackRewardModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
-import { gnoToken, toWeekDataId, getTokenBalanceOf } from '@karpatkey/gnosis-pay-rewards-sdk';
+import { gnoToken, toWeekId, getTokenBalanceOf } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Address, formatUnits } from 'viem';
 
 import { GnosisChainPublicClient } from './types';
@@ -100,8 +100,10 @@ export async function takeGnosisTokenBalanceSnapshot({
   client: GnosisChainPublicClient;
   blockNumber?: bigint;
 }) {
+  blockNumber = blockNumber ?? (await client.getBlockNumber());
+
   const block = await getBlockByNumber({
-    blockNumber: blockNumber ?? (await client.getBlockNumber()),
+    blockNumber,
     client,
     useCache: true,
   });
@@ -110,10 +112,10 @@ export async function takeGnosisTokenBalanceSnapshot({
     token: gnoToken.address,
     address: safeAddress,
     client,
-    blockNumber: block.number!,
+    blockNumber,
   });
 
-  const weekId = toWeekDataId(Number(block.timestamp));
+  const weekId = toWeekId(Number(block.timestamp));
 
   const mongooseSession = await gnosisTokenBalanceSnapshotModel.startSession();
   mongooseSession.startTransaction();
@@ -134,8 +136,10 @@ export async function takeGnosisTokenBalanceSnapshot({
 
   // Create or load the Week Cashback Reward document
   // to append the new balance snapshot to
-  const weekCashbackRewardDocument = await createWeekCashbackRewardDocument(
-    { address: safeAddress, weekCashbackRewardModel, week: weekId },
+  const weekCashbackRewardDocument = await createWeekRewardsSnapshotDocument(
+    weekCashbackRewardModel,
+    weekId,
+    safeAddress,
     mongooseSession
   );
 

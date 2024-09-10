@@ -1,6 +1,6 @@
 import {
   GnosisPayTransactionFieldsType_Unpopulated,
-  toWeekDataId,
+  toWeekId,
   IndexerStateAtomType,
   WeekIdFormatType,
   GnosisTokenBalanceSnapshotDocumentType,
@@ -11,7 +11,7 @@ import {
   getGnosisPayTransactionModel,
   getWeekCashbackRewardModel,
   createWeekCashbackRewardDocumentId,
-  createWeekCashbackRewardDocument,
+  createWeekRewardsSnapshotDocument,
   createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
   getWeekMetricsSnapshotModel,
@@ -147,81 +147,18 @@ export function addHttpRoutes({
   expressApp.get<'/cashbacks/:safeAddress'>('/cashbacks/:safeAddress', async (req, res) => {
     try {
       const safeAddress = addressSchema.parse(req.params.safeAddress).toLowerCase() as Address;
-
-      const week = toWeekDataId(dayjs.utc().unix());
-      const documentId = createWeekCashbackRewardDocumentId(week, safeAddress);
-
-      // Try to find the week reward document
-      let weekRewardSnapshot = await weekCashbackRewardModel
-        .findById(documentId)
-        .populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions')
-        .populate<{ safe: GnosisPaySafeAddressDocumentFieldsType_Unpopulated }>('safe', {
-          isOg: 1,
-          address: 1,
-        });
-
-      // If the week reward document doesn't have any gno balance snapshots, add one
-      if (weekRewardSnapshot === null) {
-        const { isGnosisPaySafe } = await isGnosisPaySafeAddress({
-          address: safeAddress,
-          client,
-          gnosisPaySafeAddressModel,
-        });
-
-        if (isGnosisPaySafe === false) {
-          throw new CustomError('Address is not a Gnosis Safe', {
-            cause: 'NOT_GNOSIS_PAY_SAFE',
-          });
-        }
-
-        const weekRewardDocument = await createWeekCashbackRewardDocument({
-          address: safeAddress,
-          populateTransactions: true,
-          weekCashbackRewardModel,
-          week,
-        });
-
-        // Take a snapshot of the GNO balance
-        await takeGnosisTokenBalanceSnapshot({
-          gnosisTokenBalanceSnapshotModel,
-          weekCashbackRewardModel,
-          gnosisPaySafeAddressModel,
-          safeAddress,
-          client,
-        });
-
-        const { data: safeOwners, error } = await getGnosisPaySafeOwners({
-          safeAddress,
-          client,
-        });
-
-        // zero owners mean that this address is likely not a GP Safe
-        if (error !== null || safeOwners.length === 0) {
-          throw new CustomError('No owners found for this safe');
-        }
-
-        // Find the OG NFT status
-        const isOg = (await hasGnosisPayOgNft(client, safeOwners)).some(Boolean);
-
-        // Create a new GnosisPaySafeAddressDocument
-        await createGnosisPaySafeAddressDocument(
-          {
-            safeAddress,
-            owners: safeOwners,
-            isOg,
-          },
-          gnosisPaySafeAddressModel
-        );
-
-        // Populate the safe info now that we have it
-        weekRewardSnapshot = await weekRewardDocument.populate('safe', {
-          isOg: 1,
-          address: 1,
-        });
-      }
+      const week = toWeekId(dayjs.utc().unix());
+      const weekRewardSnapshot = await getWeekRewardSnapshotWithFallback({
+        weekCashbackRewardModel,
+        safeAddress,
+        week,
+        client,
+        gnosisPaySafeAddressModel,
+        gnosisTokenBalanceSnapshotModel,
+      });
 
       // Final data to return to the client
-      const weekCashbackRewardJson = weekRewardSnapshot.toJSON();
+      const weekCashbackRewardJson = weekRewardSnapshot?.toJSON();
 
       return res.json({
         data: weekCashbackRewardJson,
@@ -240,7 +177,7 @@ export function addHttpRoutes({
   expressApp.get<'/cashbacks/:safeAddress/:week'>('/cashbacks/:safeAddress/:week', async (req, res) => {
     try {
       const safeAddress = addressSchema.parse(req.params.safeAddress);
-      const week = req.params.week as ReturnType<typeof toWeekDataId>;
+      const week = req.params.week as ReturnType<typeof toWeekId>;
       const documentId = createWeekCashbackRewardDocumentId(week, safeAddress);
 
       const weekCashbackRewardSnapshot = await weekCashbackRewardModel
@@ -280,29 +217,91 @@ export function addHttpRoutes({
     }
   });
 
-  expressApp.get<'/distributions/:safeAddress'>('/distributions/:safeAddress', async (req, res) => {
+  expressApp.get<'/summary/:safeAddress'>('/summary/:safeAddress', async (req, res) => {
     try {
-      const safe = addressSchema.parse(req.params.safeAddress).toLowerCase();
+      const safeAddress = addressSchema.parse(req.params.safeAddress).toLowerCase() as Address;
+      const week = toWeekId(dayjs.utc().unix());
+      // Try to find the week reward document
+      const weekRewardSnapshotDocument = await getWeekRewardSnapshotWithFallback({
+        weekCashbackRewardModel,
+        safeAddress,
+        week,
+        client,
+        gnosisPaySafeAddressModel,
+        gnosisTokenBalanceSnapshotModel,
+      });
 
-      const transactions = await gnosisPayRewardDistributionModel
-        .find<GnosisPayRewardDistributionDocumentFieldsType>({
-          safe,
-        })
-        .sort({ blockNumber: -1 })
+      if (weekRewardSnapshotDocument === null) {
+        return res.status(404).json({
+          error: 'No cashbacks found for this address  and week',
+          _query: {
+            address: safeAddress,
+            week,
+          },
+        });
+      }
+
+      const distributionDocuments = await getSafeAddressDistributions(gnosisPayRewardDistributionModel, safeAddress);
+      const earnedRewards = distributionDocuments.reduce((acc, dist) => dist.amount + acc, 0);
+
+      const weeklyRewardSnapshotDocuments = await weekCashbackRewardModel
+        .find(
+          {
+            safe: safeAddress,
+          },
+          { estimatedReward: 1 }
+        )
+        .sort({ week: -1 })
         .lean();
 
+      const estimatedRewards = weeklyRewardSnapshotDocuments.reduce(
+        (acc, { estimatedReward }) => estimatedReward + acc,
+        0
+      );
+      // pending rewards are the rewards that are pending to be claimed
+      const pendingRewards = estimatedRewards - earnedRewards;
+      // get the safe info from the week reward snapshot document
+      const { safe, maxGnoBalance, minGnoBalance } = weekRewardSnapshotDocument.toJSON();
+
+      const summary = {
+        week,
+        safe,
+        maxGnoBalance,
+        minGnoBalance,
+        pendingRewards,
+        earnedRewards,
+      };
+
+      return res.json({
+        data: summary,
+        status: 'ok',
+        statusCode: 200,
+        _query: {
+          address: safeAddress,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return returnServerError(res, error as Error);
+    }
+  });
+
+  expressApp.get<'/distributions/:safeAddress'>('/distributions/:safeAddress', async (req, res) => {
+    try {
+      const safeAddress = addressSchema.parse(req.params.safeAddress).toLowerCase() as Address;
+      const transactions = await getSafeAddressDistributions(gnosisPayRewardDistributionModel, safeAddress);
       const totalRewards = transactions.reduce((acc, dist) => dist.amount + acc, 0);
 
       return res.json({
         data: {
-          safe,
+          safe: safeAddress,
           totalRewards,
           transactions,
         },
         status: 'ok',
         statusCode: 200,
         _query: {
-          safe,
+          safe: safeAddress,
         },
       });
     } catch (error) {
@@ -313,12 +312,15 @@ export function addHttpRoutes({
   expressApp.get<'/transactions/:safeAddress'>('/transactions/:safeAddress', async (req, res) => {
     try {
       const safeAddress = addressSchema.parse(req.params.safeAddress);
-
       const transactions = await gnosisPayTransactionModel
         .find({
           safeAddress: new RegExp(safeAddress, 'i'),
         })
-        .populate('amountToken')
+        .populate('amountToken', {
+          symbol: 1,
+          decimals: 1,
+          name: 1,
+        })
         .sort({ blockTimestamp: -1 })
         .lean();
 
@@ -391,3 +393,124 @@ const weekIdSchema = z
       message: 'Week date must be a Sunday',
     }
   );
+
+async function getWeekRewardSnapshotWithFallback({
+  safeAddress,
+  week,
+  client,
+  gnosisPaySafeAddressModel,
+  weekCashbackRewardModel,
+  gnosisTokenBalanceSnapshotModel,
+}: {
+  safeAddress: Address;
+  week: WeekIdFormatType;
+  client: PublicClient<Transport, typeof gnosis>;
+  gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
+  weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+  gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
+}) {
+  const documentId = createWeekCashbackRewardDocumentId(week, safeAddress);
+
+  const getDocument = async () =>
+    weekCashbackRewardModel
+      .findById(documentId)
+      .populate<{ transactions: GnosisPayTransactionFieldsType_Unpopulated[] }>('transactions')
+      .populate<{ gnoBalanceSnapshots: GnosisTokenBalanceSnapshotDocumentType[] }>('gnoBalanceSnapshots', {
+        blockNumber: 1,
+        blockTimestamp: 1,
+        balance: 1,
+        weekId: 1,
+      })
+      .populate<{ safe: GnosisPaySafeAddressDocumentFieldsType_Unpopulated }>('safe', {
+        isOg: 1,
+        address: 1,
+      });
+
+  // Take a snapshot of the GNO balance
+  const takeGnoSnapshot = () =>
+    takeGnosisTokenBalanceSnapshot({
+      gnosisTokenBalanceSnapshotModel,
+      weekCashbackRewardModel,
+      gnosisPaySafeAddressModel,
+      safeAddress,
+      client,
+    });
+
+  // Try to find the week reward document
+  let weekRewardSnapshotDocument = await getDocument();
+
+  // The document does not exist, meaning that the API request has to trigger the creation of the document
+  if (weekRewardSnapshotDocument === null) {
+    const { isGnosisPaySafe } = await isGnosisPaySafeAddress({
+      address: safeAddress,
+      client,
+      gnosisPaySafeAddressModel,
+    });
+
+    if (isGnosisPaySafe === false) {
+      throw new CustomError('Address is not a Gnosis Safe', {
+        cause: 'NOT_GNOSIS_PAY_SAFE',
+      });
+    }
+
+    const newWeekRewardSnapshotDocument = await createWeekRewardsSnapshotDocument(
+      weekCashbackRewardModel,
+      week,
+      safeAddress
+    );
+
+    // Carry over the net usd volume from the previous week if the current week has no transactions
+    if (newWeekRewardSnapshotDocument.transactions.length === 0) {
+      const prevWeekId = toWeekId(dayjs(week).subtract(1, 'week').unix());
+      const prevDocumentId = createWeekCashbackRewardDocumentId(prevWeekId, safeAddress);
+      const previousWeekCashbackReward = await weekCashbackRewardModel.findById(prevDocumentId);
+
+      if (previousWeekCashbackReward !== null && previousWeekCashbackReward.netUsdVolume < 0) {
+        newWeekRewardSnapshotDocument.netUsdVolume = previousWeekCashbackReward.netUsdVolume;
+        await newWeekRewardSnapshotDocument.save();
+      }
+    }
+
+    // Take a snapshot of the GNO balance
+    await takeGnoSnapshot();
+
+    const { data: safeOwners, error } = await getGnosisPaySafeOwners({
+      safeAddress,
+      client,
+    });
+
+    // zero owners mean that this address is likely not a GP Safe
+    if (error !== null || safeOwners.length === 0) {
+      throw new CustomError('No owners found for this safe');
+    }
+
+    // Find the OG NFT status
+    const isOg = (await hasGnosisPayOgNft(client, safeOwners)).some(Boolean);
+
+    // Create a new GnosisPaySafeAddressDocument
+    await createGnosisPaySafeAddressDocument(
+      {
+        safeAddress,
+        owners: safeOwners,
+        isOg,
+      },
+      gnosisPaySafeAddressModel
+    );
+
+    // Refresh the document
+    weekRewardSnapshotDocument = await getDocument();
+  }
+
+  return weekRewardSnapshotDocument;
+}
+
+async function getSafeAddressDistributions(
+  model: ReturnType<typeof createGnosisPayRewardDistributionModel>,
+  safeAddress: Address
+) {
+  return model
+    .find<GnosisPayRewardDistributionDocumentFieldsType>({
+      safe: safeAddress.toLowerCase(),
+    })
+    .sort({ blockNumber: -1 });
+}

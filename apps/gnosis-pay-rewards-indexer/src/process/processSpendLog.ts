@@ -3,7 +3,7 @@ import {
   GnosisPayTransactionFieldsType_Populated,
   getOraclePriceAtBlockNumber,
   gnoToken,
-  toWeekDataId,
+  toWeekId,
   GnosisPayTransactionFieldsType_Unpopulated,
   GnosisPayTransactionType,
   calculateNetUsdVolume,
@@ -14,7 +14,7 @@ import {
   getTokenBalanceOf,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
-  createWeekCashbackRewardDocument,
+  createWeekRewardsSnapshotDocument,
   createWeekMetricsSnapshotDocument,
   GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
   createGnosisPaySafeAddressDocument,
@@ -92,7 +92,7 @@ export async function processSpendLog({
       token: gnoToken.address,
     });
 
-    const weekId = toWeekDataId(Number(block.timestamp));
+    const weekId = toWeekId(Number(block.timestamp));
     const amount = Number(formatUnits(spendAmountRaw, spentToken.decimals));
     const amountUsd = tokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
@@ -190,7 +190,7 @@ export async function processRefundLog({
       token: gnoToken.address,
     });
 
-    const weekId = toWeekDataId(Number(block.timestamp));
+    const weekId = toWeekId(Number(block.timestamp));
     const amount = Number(formatUnits(amountRaw, spentToken.decimals));
     const amountUsd = tokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
@@ -336,12 +336,10 @@ async function saveToDatabase(
   ).save({ session: mongooseSession });
 
   // Update the week cashback reward document
-  const weekRewardDocument = await createWeekCashbackRewardDocument(
-    {
-      address: safeAddress,
-      weekCashbackRewardModel,
-      week: weekId,
-    },
+  const weekRewardDocument = await createWeekRewardsSnapshotDocument(
+    weekCashbackRewardModel,
+    weekId,
+    safeAddress,
     mongooseSession
   );
 
@@ -366,7 +364,7 @@ async function saveToDatabase(
   // we need to check if the previous week cashback net volume is in the negative
   // if it is negative, we need to carry the negative volume over to the new week
   if (weekRewardDocument.transactions.length === 0) {
-    const prevWeekId = toWeekDataId(dayjs(weekId).subtract(1, 'week').unix());
+    const prevWeekId = toWeekId(dayjs(weekId).subtract(1, 'week').unix());
     const prevDocumentId = createWeekCashbackRewardDocumentId(prevWeekId, safeAddress);
     const previousWeekCashbackReward = await weekCashbackRewardModel.findById(prevDocumentId);
 
