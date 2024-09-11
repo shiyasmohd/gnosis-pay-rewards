@@ -393,9 +393,18 @@ async function saveToDatabase(
     weekRewardDocument.minGnoBalance = gnoBalance;
   }
 
+  // Retrieve the last three weeks of data
+  const fourWeekSnapshots = await weekCashbackRewardModel
+    .find({ safe: safeAddress }, { netUsdVolume: 1, week: 1 })
+    .sort({ week: -1 })
+    .limit(4)
+    .lean();
+
+  const fourWeeksUsdVolume = fourWeekSnapshots.reduce((acc, curr) => acc + curr.netUsdVolume, 0);
+
   // Calculate the estimated reward for the week
   const estimatedReward = calculateWeekRewardAmount({
-    fourWeeksUsdVolume: 0, // ignored in the indexer
+    fourWeeksUsdVolume, // ignored in the indexer
     gnoBalance: weekRewardDocument.minGnoBalance,
     gnoUsdPrice,
     isOgNftHolder: gnosisPaySafeAddressPayload.isOg,
