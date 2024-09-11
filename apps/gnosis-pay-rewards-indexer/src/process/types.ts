@@ -21,7 +21,6 @@ export type MongooseConfiguredModels = {
   gnosisTokenBalanceSnapshotModel: Model<GnosisTokenBalanceSnapshotDocumentType>;
 };
 
-
 export type GnosisChainPublicClient = PublicClient<Transport, typeof gnosis>;
 
 export type ProcessLogFunctionParams<LogType extends Record<string, unknown>> = {

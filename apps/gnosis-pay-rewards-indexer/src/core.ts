@@ -396,7 +396,7 @@ async function handleGnosisPayRewardsDistributionLogs({
 function handleError(
   logger: ReturnType<typeof createMongooseLogger>,
   error: Error,
-  logish: { eventName: string; transactionHash: string; blockNumber: number }
+  logish: { eventName: string; transactionHash: string; blockNumber: number },
 ) {
   if (error.cause !== 'LOG_ALREADY_PROCESSED') {
     console.error(error);

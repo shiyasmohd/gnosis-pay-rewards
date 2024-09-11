@@ -70,7 +70,7 @@ export async function processSpendLog({
     });
 
     const safeHasOgNft = await hasGnosisPayOgNft(client, safeOwners).then((hasArray) =>
-      hasArray.some((addr) => addr === true)
+      hasArray.some((addr) => addr === true),
     );
 
     const gnosisPaySafeGnoTokenBalance = await getTokenBalanceOf({
@@ -125,7 +125,7 @@ export async function processSpendLog({
         transactions: [],
         gnoBalanceSnapshots: [],
       },
-      mongooseModels
+      mongooseModels,
     );
 
     return {
@@ -168,7 +168,7 @@ export async function processRefundLog({
     });
 
     const safeHasOgNft = await hasGnosisPayOgNft(client, safeOwners).then((hasArray) =>
-      hasArray.some((addr) => addr === true)
+      hasArray.some((addr) => addr === true),
     );
 
     const gnosisPaySafeGnoTokenBalance = await getTokenBalanceOf({
@@ -223,7 +223,7 @@ export async function processRefundLog({
         transactions: [],
         gnoBalanceSnapshots: [],
       },
-      mongooseModels
+      mongooseModels,
     );
 
     return {
@@ -240,7 +240,7 @@ export async function processRefundLog({
 
 async function validateLogIsNotAlreadyProcessed(
   gnosisPayTransactionModel: Model<GnosisPayTransactionFieldsType_Unpopulated>,
-  logId: string
+  logId: string,
 ) {
   const savedLog = await gnosisPayTransactionModel.findOne({ _id: logId });
   if (savedLog !== null) {
@@ -276,7 +276,7 @@ async function getGnosisPaySafeOwners(params: Parameters<typeof getGnosisPaySafe
 }
 
 async function getTokenUsdPrice(
-  params: { token: Address } & Omit<Parameters<typeof getOraclePriceAtBlockNumber>[0], 'oracle'>
+  params: { token: Address } & Omit<Parameters<typeof getOraclePriceAtBlockNumber>[0], 'oracle'>,
 ) {
   if (isAddressEqual(params.token, usdcBridgeToken.address) || isAddressEqual(params.token, circleUsdcToken.address)) {
     return 1;
@@ -306,7 +306,7 @@ async function getTokenUsdPrice(
 async function saveToDatabase(
   transactionPayload: GnosisPayTransactionFieldsType_Unpopulated,
   gnosisPaySafeAddressPayload: GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
-  mongooseModels: MongooseConfiguredModels
+  mongooseModels: MongooseConfiguredModels,
 ): Promise<ProcessLogFnDataType> {
   const {
     gnosisPayTransactionModel,
@@ -317,22 +317,15 @@ async function saveToDatabase(
   } = mongooseModels;
   transactionPayload.safeAddress = transactionPayload.safeAddress.toLowerCase() as Address;
   transactionPayload.amountToken = transactionPayload.amountToken.toLowerCase() as Address;
-  const {
-    weekId,
-    gnoUsdPrice,
-    gnoBalance,
-    safeAddress,
-    gnoBalanceRaw,
-    blockNumber,
-    blockTimestamp,
-  } = transactionPayload;
+  const { weekId, gnoUsdPrice, gnoBalance, safeAddress, gnoBalanceRaw, blockNumber, blockTimestamp } =
+    transactionPayload;
 
   // Start a session to ensure atomicity
   const mongooseSession = await gnosisPayTransactionModel.startSession();
   mongooseSession.startTransaction();
 
   const transactionDocument = await new gnosisPayTransactionModel<GnosisPayTransactionFieldsType_Unpopulated>(
-    transactionPayload
+    transactionPayload,
   ).save({ session: mongooseSession });
 
   // Update the week cashback reward document
@@ -340,7 +333,7 @@ async function saveToDatabase(
     weekCashbackRewardModel,
     weekId,
     safeAddress,
-    mongooseSession
+    mongooseSession,
   );
 
   // Create the Gnosis Token Balance Snapshot document
@@ -354,7 +347,7 @@ async function saveToDatabase(
       safe: safeAddress,
       weekId,
     },
-    mongooseSession
+    mongooseSession,
   );
 
   // Initialize the net usd volume field
@@ -404,7 +397,7 @@ async function saveToDatabase(
 
   // Calculate the estimated reward for the week
   const estimatedReward = calculateWeekRewardAmount({
-    fourWeeksUsdVolume, // ignored in the indexer
+    fourWeeksUsdVolume,
     gnoBalance: weekRewardDocument.minGnoBalance,
     gnoUsdPrice,
     isOgNftHolder: gnosisPaySafeAddressPayload.isOg,
@@ -430,7 +423,7 @@ async function saveToDatabase(
         owners: gnosisPaySafeAddressPayload.owners,
       },
       gnosisPaySafeAddressModel,
-      mongooseSession
+      mongooseSession,
     );
 
     gnosisPaySafeAddressDocument.gnoBalanceSnapshots.push(gnosisTokenBalanceSnapshotDocument._id);
@@ -447,7 +440,7 @@ async function saveToDatabase(
       weekId,
       weekMetricsSnapshotModel,
     },
-    mongooseSession
+    mongooseSession,
   );
   // Add the spend transaction to the week metrics snapshot
   weekMetricsOldSnapshot.transactions.push(transactionDocument._id);

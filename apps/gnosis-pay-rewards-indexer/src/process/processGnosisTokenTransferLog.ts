@@ -42,8 +42,8 @@ export async function processGnosisTokenTransferLog({
           address,
           client,
           gnosisPaySafeAddressModel,
-        }).then(({ isGnosisPaySafe }) => isGnosisPaySafe)
-      )
+        }).then(({ isGnosisPaySafe }) => isGnosisPaySafe),
+      ),
     );
 
     // If either the sender or receiver is a Gnosis Pay Safe,
@@ -77,7 +77,7 @@ export async function processGnosisTokenTransferLog({
 
 async function validateLogIsNotAlreadyProcessed(
   gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>,
-  transactionHash: string
+  transactionHash: string,
 ) {
   const existing = await gnosisTokenBalanceSnapshotModel.findById(transactionHash);
   if (existing) {
@@ -131,7 +131,7 @@ export async function takeGnosisTokenBalanceSnapshot({
       blockTimestamp: Number(block.timestamp),
       weekId,
     },
-    mongooseSession
+    mongooseSession,
   );
 
   // Create or load the Week Cashback Reward document
@@ -140,7 +140,7 @@ export async function takeGnosisTokenBalanceSnapshot({
     weekCashbackRewardModel,
     weekId,
     safeAddress,
-    mongooseSession
+    mongooseSession,
   );
 
   // Find other balance snapshots in the same week for the safe
@@ -150,7 +150,7 @@ export async function takeGnosisTokenBalanceSnapshot({
       weekId,
     },
     { balance: 1 },
-    { session: mongooseSession }
+    { session: mongooseSession },
   );
 
   // Append the new gnoBalanceSnapshot to the weekCashbackRewardDocument
@@ -175,7 +175,7 @@ export async function takeGnosisTokenBalanceSnapshot({
         gnoBalanceSnapshots: gnosisTokenBalanceSnapshotDocument.id,
       },
     },
-    { session: mongooseSession }
+    { session: mongooseSession },
   );
 
   await mongooseSession.commitTransaction();

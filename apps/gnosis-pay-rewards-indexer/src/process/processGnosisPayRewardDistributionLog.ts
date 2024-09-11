@@ -31,15 +31,14 @@ export async function processGnosisPayRewardDistributionLog({
     // Validate that the log has not already been processed
     await validateLogIsNotAlreadyProcessed(gnosisPayRewardDistributionModel, transactionHash);
 
-    const distributionDocument = await new gnosisPayRewardDistributionModel<
-      GnosisPayRewardDistributionDocumentFieldsType
-    >({
-      _id: transactionHash,
-      amount: Number(formatUnits(log.args.value, gnoToken.decimals)),
-      blockNumber: Number(blockNumber),
-      transactionHash,
-      safe: log.args.to.toLowerCase() as Address,
-    }).save();
+    const distributionDocument =
+      await new gnosisPayRewardDistributionModel<GnosisPayRewardDistributionDocumentFieldsType>({
+        _id: transactionHash,
+        amount: Number(formatUnits(log.args.value, gnoToken.decimals)),
+        blockNumber: Number(blockNumber),
+        transactionHash,
+        safe: log.args.to.toLowerCase() as Address,
+      }).save();
 
     const distributionJson = distributionDocument.toJSON();
 
@@ -57,7 +56,7 @@ export async function processGnosisPayRewardDistributionLog({
 
 async function validateLogIsNotAlreadyProcessed(
   gnosisPayRewardDistributionModel: MongooseModels['gnosisPayRewardDistributionModel'],
-  transactionHash: string
+  transactionHash: string,
 ) {
   const existingLog = await gnosisPayRewardDistributionModel.findOne({ transactionHash });
   if (existingLog !== null) {

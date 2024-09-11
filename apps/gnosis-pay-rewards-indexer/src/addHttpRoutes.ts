@@ -73,7 +73,7 @@ export function addHttpRoutes({
   expressApp.get<'/status'>('/status', (_, res) => {
     const state = getIndexerState();
     const indexerState = Object.fromEntries(
-      Object.entries(state).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value])
+      Object.entries(state).map(([key, value]) => [key, typeof value === 'bigint' ? Number(value) : value]),
     );
 
     return res.send({
@@ -249,14 +249,14 @@ export function addHttpRoutes({
           {
             safe: safeAddress,
           },
-          { estimatedReward: 1 }
+          { estimatedReward: 1 },
         )
         .sort({ week: -1 })
         .lean();
 
       const estimatedRewards = weeklyRewardSnapshotDocuments.reduce(
         (acc, { estimatedReward }) => estimatedReward + acc,
-        0
+        0,
       );
       // pending rewards are the rewards that are pending to be claimed
       const pendingRewards = estimatedRewards - earnedRewards;
@@ -382,7 +382,7 @@ const weekIdSchema = z
     },
     {
       message: 'Invalid week date format',
-    }
+    },
   )
   .refine(
     (value: string) => {
@@ -391,7 +391,7 @@ const weekIdSchema = z
     },
     {
       message: 'Week date must be a Sunday',
-    }
+    },
   );
 
 async function getWeekRewardSnapshotWithFallback({
@@ -456,7 +456,7 @@ async function getWeekRewardSnapshotWithFallback({
     const newWeekRewardSnapshotDocument = await createWeekRewardsSnapshotDocument(
       weekCashbackRewardModel,
       week,
-      safeAddress
+      safeAddress,
     );
 
     // Carry over the net usd volume from the previous week if the current week has no transactions
@@ -494,7 +494,7 @@ async function getWeekRewardSnapshotWithFallback({
         owners: safeOwners,
         isOg,
       },
-      gnosisPaySafeAddressModel
+      gnosisPaySafeAddressModel,
     );
 
     // Refresh the document
@@ -506,7 +506,7 @@ async function getWeekRewardSnapshotWithFallback({
 
 async function getSafeAddressDistributions(
   model: ReturnType<typeof createGnosisPayRewardDistributionModel>,
-  safeAddress: Address
+  safeAddress: Address,
 ) {
   return model
     .find<GnosisPayRewardDistributionDocumentFieldsType>({

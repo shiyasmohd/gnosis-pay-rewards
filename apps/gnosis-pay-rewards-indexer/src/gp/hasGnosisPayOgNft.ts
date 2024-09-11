@@ -5,9 +5,8 @@ const OG_NFT_ADDRESS = '0x88997988a6A5aAF29BA973d298D276FE75fb69ab' as const;
 
 export async function hasGnosisPayOgNft(
   client: PublicClient<Transport, typeof gnosis>,
-  userAddressArray: Address[]
+  userAddressArray: Address[],
 ): Promise<boolean[]> {
-
   const mcResult = await client.multicall({
     allowFailure: false,
     contracts: userAddressArray.map((address) => ({
