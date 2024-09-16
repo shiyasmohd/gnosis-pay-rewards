@@ -36,7 +36,6 @@ export async function getGnosisPayRewardDistributionLogs({
       event: erc20TokenTransferAbiItem,
       fromBlock,
       toBlock,
-      strict: true,
     });
     return logs;
   } catch (error) {

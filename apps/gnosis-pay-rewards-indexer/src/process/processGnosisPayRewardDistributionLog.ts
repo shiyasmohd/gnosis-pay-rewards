@@ -22,7 +22,7 @@ export async function processGnosisPayRewardDistributionLog({
     const { blockNumber, transactionHash } = log;
     const { gnosisPayRewardDistributionModel } = mongooseModels;
 
-    if (!isAddressEqual(log.args.from, gnosisPayRewardDistributionSafeAddress)) {
+    if (!isAddressEqual(log.args.from as Address, gnosisPayRewardDistributionSafeAddress)) {
       throw new Error(`Invalid safe address: ${log.args.from}`, {
         cause: 'NOT_FROM_KARPATKEY_REWARD_DISTRIBUTION_SAFE',
       });
@@ -34,10 +34,10 @@ export async function processGnosisPayRewardDistributionLog({
     const distributionDocument =
       await new gnosisPayRewardDistributionModel<GnosisPayRewardDistributionDocumentFieldsType>({
         _id: transactionHash,
-        amount: Number(formatUnits(log.args.value, gnoToken.decimals)),
+        amount: Number(formatUnits(log.args.value as bigint, gnoToken.decimals)),
         blockNumber: Number(blockNumber),
         transactionHash,
-        safe: log.args.to.toLowerCase() as Address,
+        safe: log.args.to?.toLowerCase() as Address,
       }).save();
 
     const distributionJson = distributionDocument.toJSON();
