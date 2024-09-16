@@ -1,6 +1,7 @@
 import {
   createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
+  toGnosisPayRewardDistributionDocumentId,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { gnosisPayRewardDistributionSafeAddress, gnoToken } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Address, formatUnits, isAddressEqual } from 'viem';
@@ -28,17 +29,25 @@ export async function processGnosisPayRewardDistributionLog({
       });
     }
 
-    // Validate that the log has not already been processed
-    await validateLogIsNotAlreadyProcessed(gnosisPayRewardDistributionModel, transactionHash);
+    const documentId = toGnosisPayRewardDistributionDocumentId(transactionHash, log.args.to as Address);
 
-    const distributionDocument =
-      await new gnosisPayRewardDistributionModel<GnosisPayRewardDistributionDocumentFieldsType>({
-        _id: transactionHash,
-        amount: Number(formatUnits(log.args.value as bigint, gnoToken.decimals)),
-        blockNumber: Number(blockNumber),
-        transactionHash,
-        safe: log.args.to?.toLowerCase() as Address,
-      }).save();
+    // Validate that the log has not already been processed
+    const existingLog = await gnosisPayRewardDistributionModel.findById(documentId);
+    if (existingLog !== null) {
+      throw new Error(`Log already processed: ${documentId}`, {
+        cause: 'LOG_ALREADY_PROCESSED',
+      });
+    }
+
+    const distributionDocument = await new gnosisPayRewardDistributionModel<
+      GnosisPayRewardDistributionDocumentFieldsType
+    >({
+      _id: documentId,
+      amount: Number(formatUnits(log.args.value as bigint, gnoToken.decimals)),
+      blockNumber: Number(blockNumber),
+      transactionHash,
+      safe: log.args.to?.toLowerCase() as Address,
+    }).save();
 
     const distributionJson = distributionDocument.toJSON();
 
@@ -51,17 +60,5 @@ export async function processGnosisPayRewardDistributionLog({
       data: null,
       error: error as Error,
     };
-  }
-}
-
-async function validateLogIsNotAlreadyProcessed(
-  gnosisPayRewardDistributionModel: MongooseModels['gnosisPayRewardDistributionModel'],
-  transactionHash: string,
-) {
-  const existingLog = await gnosisPayRewardDistributionModel.findOne({ transactionHash });
-  if (existingLog !== null) {
-    throw new Error(`Log already processed: ${transactionHash}`, {
-      cause: 'LOG_ALREADY_PROCESSED',
-    });
   }
 }

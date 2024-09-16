@@ -1,5 +1,5 @@
 import { gnoToken, gnosisPayRewardDistributionSafeAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { PublicClient, Transport } from 'viem';
+import { PublicClient, Transport, erc20Abi } from 'viem';
 import { gnosis } from 'viem/chains';
 
 export async function getGnosisPayRewardDistributionLogs({
@@ -33,9 +33,10 @@ export async function getGnosisPayRewardDistributionLogs({
       args: {
         from: gnosisPayRewardDistributionSafeAddress,
       },
-      event: erc20TokenTransferAbiItem,
+      event: erc20Abi[1],
       fromBlock,
       toBlock,
+      strict: true,
     });
     return logs;
   } catch (error) {
@@ -49,13 +50,3 @@ export async function getGnosisPayRewardDistributionLogs({
     throw error;
   }
 }
-
-const erc20TokenTransferAbiItem = {
-  name: 'Transfer',
-  type: 'event',
-  inputs: [
-    { indexed: false, internalType: 'address', name: 'from', type: 'address' },
-    { indexed: false, internalType: 'address', name: 'to', type: 'address' },
-    { indexed: false, internalType: 'uint256', name: 'value', type: 'uint256' },
-  ],
-} as const;
