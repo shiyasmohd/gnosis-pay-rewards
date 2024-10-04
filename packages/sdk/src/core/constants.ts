@@ -5,7 +5,7 @@ export enum ChainId {
 /**
  * Gnosis Pay Spend Address: the address that receives EURe, GBP and USDC from other GP Safes
  */
-export const gnosisPaySpendAddress = '0x4822521E6135CD2599199c83Ea3517929A172EE' as const;
+export const gnosisPaySpendAddress = '0x4822521E6135CD2599199c83Ea35179229A172EE' as const;
 
 /**
  * Gnosis Pay Spender Module Address
