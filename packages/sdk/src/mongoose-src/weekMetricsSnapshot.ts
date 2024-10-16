@@ -27,10 +27,12 @@ export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
 
 export const weekMetricsSnapshotModelName = 'WeekMetricsSnapshot' as const;
 
-export function getWeekMetricsSnapshotModel(mongooseConnection: Mongoose) {
+export type WeekMetricsSnapshotModelType = Model<WeekSnapshotDocumentFieldsType>;
+
+export function createWeekMetricsSnapshotModel(mongooseConnection: Mongoose): WeekMetricsSnapshotModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[weekMetricsSnapshotModelName]) {
-    return mongooseConnection.models[weekMetricsSnapshotModelName] as Model<WeekSnapshotDocumentFieldsType>;
+    return mongooseConnection.models[weekMetricsSnapshotModelName] as WeekMetricsSnapshotModelType;
   }
 
   return mongooseConnection.model(weekMetricsSnapshotModelName, weekDataSchema);

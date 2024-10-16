@@ -34,16 +34,18 @@ const loggerSchema = new Schema<LoggerDocumentFieldsType>(
 
 const loggerModelName = 'Logger' as const;
 
-export function getLoggerModel(mongooseConnection: Mongoose) {
+export type LoggerModelType = Model<LoggerDocumentFieldsType>;
+
+export function createLoggerModel(mongooseConnection: Mongoose): LoggerModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[loggerModelName]) {
-    return mongooseConnection.models[loggerModelName] as Model<LoggerDocumentFieldsType>;
+    return mongooseConnection.models[loggerModelName];
   }
 
   return mongooseConnection.model(loggerModelName, loggerSchema);
 }
 
-export function log(model: Model<LoggerDocumentFieldsType>, params: LoggerDocumentFieldsType) {
+export function log(model: LoggerModelType, params: LoggerDocumentFieldsType) {
   try {
     return model.create(params);
   } catch (error) {
@@ -51,7 +53,7 @@ export function log(model: Model<LoggerDocumentFieldsType>, params: LoggerDocume
   }
 }
 
-export function createMongooseLogger(loggerModel: ReturnType<typeof getLoggerModel>) {
+export function createMongooseLogger(loggerModel: LoggerModelType) {
   return {
     log: (params: LoggerDocumentFieldsType) => log(loggerModel, params),
     logError: (params: Omit<LoggerDocumentFieldsType, 'level'>) =>

@@ -102,7 +102,7 @@ export function getCurrentWeekId() {
 
 export type WeekCashbackRewardModelType = Model<WeekCashbackRewardDocumentFieldsType_Unpopulated>;
 
-export function getWeekCashbackRewardModel(mongooseConnection: Mongoose): WeekCashbackRewardModelType {
+export function createWeekCashbackRewardModel(mongooseConnection: Mongoose): WeekCashbackRewardModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[modelName]) {
     return mongooseConnection.models[modelName] as WeekCashbackRewardModelType;
@@ -115,7 +115,7 @@ export function getWeekCashbackRewardModel(mongooseConnection: Mongoose): WeekCa
  * Creates (or returns the week) cashback reward document
  */
 export async function createWeekRewardsSnapshotDocument(
-  model: Model<WeekCashbackRewardDocumentFieldsType_Unpopulated>,
+  model: WeekCashbackRewardModelType,
   week: WeekIdFormatType,
   address: Address,
   session?: ClientSession,

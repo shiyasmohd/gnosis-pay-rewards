@@ -36,10 +36,12 @@ const gnosisPayTokenSchema = new Schema<TokenDocumentFieldsType>(
   },
 );
 
-export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocumentFieldsType> {
+export type TokenModelType = Model<TokenDocumentFieldsType>;
+
+export function createTokenModel(mongooseConnection: Mongoose): TokenModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[gnosisPayTokenModelName]) {
-    return mongooseConnection.models[gnosisPayTokenModelName] as Model<TokenDocumentFieldsType>;
+    return mongooseConnection.models[gnosisPayTokenModelName];
   }
 
   return mongooseConnection.model(gnosisPayTokenModelName, gnosisPayTokenSchema);
@@ -50,7 +52,7 @@ export function getTokenModel(mongooseConnection: Mongoose): Model<TokenDocument
  * @param mongooseClient - The mongoose client
  */
 export async function saveGnosisPayTokensToDatabase(
-  tokenModel: Model<TokenDocumentFieldsType>,
+  tokenModel: TokenModelType,
   tokens: SerializableErc20TokenType[],
   clean = false,
 ) {

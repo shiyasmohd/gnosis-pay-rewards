@@ -64,15 +64,15 @@ const gnosisPaySafeAddressSchema = new Schema<GnosisPaySafeAddressDocumentFields
   ],
 });
 
-type GnosisPaySafeAddressModel = Model<GnosisPaySafeAddressDocumentFieldsType>;
+export type GnosisPaySafeAddressModelType = Model<GnosisPaySafeAddressDocumentFieldsType>;
 
-export function getGnosisPaySafeAddressModel(mongooseConnection: Mongoose): GnosisPaySafeAddressModel {
+export function createGnosisPaySafeAddressModel(mongooseConnection: Mongoose): GnosisPaySafeAddressModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[gnosisPaySafeAddressModelName]) {
     return mongooseConnection.models[gnosisPaySafeAddressModelName];
   }
 
-  return mongooseConnection.model<GnosisPaySafeAddressDocumentFieldsType>(
+  return mongooseConnection.model(
     gnosisPaySafeAddressModelName,
     gnosisPaySafeAddressSchema,
   );
@@ -84,7 +84,7 @@ export async function createGnosisPaySafeAddressDocument(
     owners: Address[];
     isOg: boolean;
   },
-  gnosisPaySafeAddressModel: Model<GnosisPaySafeAddressDocumentFieldsType>,
+  gnosisPaySafeAddressModel: GnosisPaySafeAddressModelType,
   mongooseSession?: ClientSession,
 ): Promise<HydratedDocument<GnosisPaySafeAddressDocumentFieldsType>> {
   const safeAddress = payload.safeAddress.toLowerCase() as Address;

@@ -40,8 +40,8 @@ export const weekIdFormat = 'YYYY-MM-DD' as const;
  * @param rollbackWeeks - The number of weeks to rollback, defaults to 0. For example, if you want to get the week data ID for the week that ended 2 weeks ago, you can pass `rollbackWeeks = 2`.
  * @returns The week data ID
  */
-export function toWeekId(unixTimestamp: number, rollbackWeeks = 0): WeekIdFormatType {
-  const weekStart = dayjsCore.unix(unixTimestamp).utc().startOf('week').subtract(rollbackWeeks, 'week');
+export function toWeekId(unixTimestamp: number | bigint, rollbackWeeks = 0): WeekIdFormatType {
+  const weekStart = dayjsCore.unix(Number(unixTimestamp)).utc().startOf('week').subtract(rollbackWeeks, 'week');
   const yyyyMMDD = weekStart.format(weekIdFormat);
 
   return yyyyMMDD as WeekIdFormatType;

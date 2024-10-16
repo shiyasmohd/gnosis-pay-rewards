@@ -69,13 +69,13 @@ export const gnosisPayTransactionSchema = new Schema<GnosisPayTransactionFieldsT
   },
 );
 
-type GetTransactionModel = Model<GnosisPayTransactionFieldsType_Unpopulated>;
+export type GnosisPayTransactionModelType = Model<GnosisPayTransactionFieldsType_Unpopulated>;
 
-export function getGnosisPayTransactionModel(mongooseConnection: Mongoose): GetTransactionModel {
+export function createGnosisPayTransactionModel(mongooseConnection: Mongoose): GnosisPayTransactionModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[gnosisPayTransactionModelName]) {
-    return mongooseConnection.models[gnosisPayTransactionModelName] as GetTransactionModel;
+    return mongooseConnection.models[gnosisPayTransactionModelName];
   }
 
-  return mongooseConnection.model(gnosisPayTransactionModelName, gnosisPayTransactionSchema) as GetTransactionModel;
+  return mongooseConnection.model(gnosisPayTransactionModelName, gnosisPayTransactionSchema);
 }

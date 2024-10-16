@@ -4,7 +4,7 @@ import {
   IndexerStateAtomType,
   WeekIdFormatType,
   GnosisTokenBalanceSnapshotDocumentType,
-  isValidWeekDataId,
+  isValidWeekId,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   createMongooseLogger,
@@ -376,14 +376,9 @@ const addressSchema = z.string().refine(isAddress, {
 
 const weekIdSchema = z
   .string()
-  .refine(
-    (value: string) => {
-      return isValidWeekDataId(value);
-    },
-    {
-      message: 'Invalid week date format',
-    },
-  )
+  .refine((value: string) => isValidWeekId(value), {
+    message: 'Invalid week date format',
+  })
   .refine(
     (value: string) => {
       const isSunday = dayjs(value).day() === 0;

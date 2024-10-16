@@ -47,18 +47,18 @@ blockSchema.pre('save', function (this: BlockDocumentFieldsType, next) {
   next();
 });
 
-type BlockModel = Model<BlockDocumentFieldsType>;
+export type BlockModelType = Model<BlockDocumentFieldsType>;
 
-export function getBlockModel(mongooseConnection: Mongoose) {
+export function createBlockModel(mongooseConnection: Mongoose): BlockModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[blockModelName]) {
-    return mongooseConnection.models[blockModelName] as BlockModel;
+    return mongooseConnection.models[blockModelName] as BlockModelType;
   }
 
-  return mongooseConnection.model(blockModelName, blockSchema) as BlockModel;
+  return mongooseConnection.model(blockModelName, blockSchema) as BlockModelType;
 }
 
-export function saveBlock(block: Omit<BlockDocumentFieldsType, 'weekId' | '_id'>, blockModel: BlockModel) {
+export function saveBlock(block: Omit<BlockDocumentFieldsType, 'weekId' | '_id'>, blockModel: BlockModelType) {
   const weekId = toWeekId(block.timestamp);
   return blockModel.create({
     ...block,

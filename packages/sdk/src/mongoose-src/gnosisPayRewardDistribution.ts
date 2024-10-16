@@ -41,7 +41,7 @@ export const gnosisPayRewardDistributionSchema = new Schema<GnosisPayRewardDistr
   },
 });
 
-type GnosisPayRewardDistributionModelType = Model<GnosisPayRewardDistributionDocumentFieldsType>;
+export type GnosisPayRewardDistributionModelType = Model<GnosisPayRewardDistributionDocumentFieldsType>;
 
 /**
  * Create a document ID for the GnosisPayRewardDistribution collection.

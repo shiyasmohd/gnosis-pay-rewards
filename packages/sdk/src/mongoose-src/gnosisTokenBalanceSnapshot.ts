@@ -44,7 +44,7 @@ export const gnosisTokenBalanceSnapshotSchema = new Schema<GnosisTokenBalanceSna
     next();
   });
 
-type GnosisTokenBalanceSnapshotModel = Model<GnosisTokenBalanceSnapshotDocumentType>;
+export type GnosisTokenBalanceSnapshotModelType = Model<GnosisTokenBalanceSnapshotDocumentType>;
 
 /**
  * Creates a new Gnosis Token Balance Snapshot document id
@@ -56,10 +56,10 @@ export function createGnosisTokenBalanceSnapshotDocumentId(blockNumber: number, 
   return `${blockNumber}/${safeAddress.toLowerCase()}` as `${number}/${Address}`;
 }
 
-export function createGnosisTokenBalanceSnapshotModel(mongooseConnection: Mongoose): GnosisTokenBalanceSnapshotModel {
+export function createGnosisTokenBalanceSnapshotModel(mongooseConnection: Mongoose): GnosisTokenBalanceSnapshotModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[gnosisTokenBalanceSnapshotModelName]) {
-    return mongooseConnection.models[gnosisTokenBalanceSnapshotModelName] as GnosisTokenBalanceSnapshotModel;
+    return mongooseConnection.models[gnosisTokenBalanceSnapshotModelName];
   }
 
   return mongooseConnection.model(gnosisTokenBalanceSnapshotModelName, gnosisTokenBalanceSnapshotSchema);
@@ -73,7 +73,7 @@ export function createGnosisTokenBalanceSnapshotModel(mongooseConnection: Mongoo
  * @returns
  */
 export function createGnosisTokenBalanceSnapshotDocument(
-  gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>,
+  gnosisTokenBalanceSnapshotModel: GnosisTokenBalanceSnapshotModelType,
   payload: Omit<GnosisTokenBalanceSnapshotDocumentType, '_id'>,
   session?: ClientSession,
 ) {
