@@ -29,3 +29,9 @@ export const gnosisPayRewardDistributionSafeAddress = '0xCdF50be9061086e2eCfE6e4
  * Aug-18-2024 12:00:35 AM +UTC
  */
 export const gnosisPayStartBlock = 35_536_000n;
+
+
+/**
+ * Gnosis Pay OG NFT address
+ */
+export const gnosisPayOgNftAddress = '0x88997988a6A5aAF29BA973d298D276FE75fb69ab' as const;
