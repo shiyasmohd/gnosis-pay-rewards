@@ -1,7 +1,7 @@
 import type { Server as SocketIoServer } from 'socket.io';
 
 import { GnosisPayTransactionFieldsType_Populated } from './database/spendTransaction';
-import { WeekSnapshotDocumentFieldsType } from './database/weekData';
+import { WeekSnapshotDocumentFieldsType } from './database/weekSnapshot';
 
 export interface GnosisPayRewardsServerToClientEventsType {
   newTransaction: (data: GnosisPayTransactionFieldsType_Populated) => void;

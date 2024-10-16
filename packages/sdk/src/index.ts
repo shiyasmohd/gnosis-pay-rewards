@@ -6,7 +6,7 @@ export * from './gnoisPayTokens';
 export * from './database/gnosisPayToken';
 export * from './database/spendTransaction';
 export * from './database/utils';
-export * from './database/weekData';
+export * from './database/weekSnapshot';
 export * from './database/weekReward';
 export * from './database/gnosisTokenBalanceSnapshot';
 export * from './socket';

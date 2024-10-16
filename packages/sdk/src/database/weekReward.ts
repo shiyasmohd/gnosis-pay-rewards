@@ -1,5 +1,5 @@
 import { Address } from 'viem';
-import { WeekIdFormatType } from './weekData';
+import { WeekIdFormatType } from './weekSnapshot';
 import { GnosisPayTransactionFieldsType_Unpopulated } from './spendTransaction';
 import { GnosisTokenBalanceSnapshotDocumentType } from './gnosisTokenBalanceSnapshot';
 
@@ -11,6 +11,11 @@ export type WeekCashbackRewardDocumentFieldsTypeBase<TransactionsFieldType, Gnos
    * The estimated reward for the week
    */
   estimatedReward: number;
+  /**
+   * The actual reward for the week.
+   * This is null until the reward has been distributed.
+   */
+  earnedReward: number | null;
   /**
    * The highest GNO balance of the user at the end of the week
    */

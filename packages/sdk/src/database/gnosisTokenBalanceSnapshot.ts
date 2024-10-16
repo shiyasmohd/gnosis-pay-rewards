@@ -1,5 +1,5 @@
 import { Address } from 'viem';
-import { WeekIdFormatType } from './weekData';
+import { WeekIdFormatType } from './weekSnapshot';
 
 export type GnosisTokenBalanceSnapshotDocumentType = {
   _id: `${number}/${Address}`;

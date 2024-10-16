@@ -2,6 +2,7 @@ import { Model, Mongoose, Schema } from 'mongoose';
 
 import { mongooseSchemaAddressField, mongooseSchemaHashField } from './sharedSchemaFields';
 import { Address, isAddress, isHash } from 'viem';
+import { isValidWeekId, WeekIdFormatType } from '../database/weekSnapshot';
 
 export const gnosisPayRewardDistributionModelName = 'GnosisPayRewardDistribution' as const;
 
@@ -11,6 +12,7 @@ export type GnosisPayRewardDistributionDocumentFieldsType = {
   blockNumber: number;
   amount: number;
   safe: Address;
+  week: WeekIdFormatType | null;
 };
 
 export const gnosisPayRewardDistributionSchema = new Schema<GnosisPayRewardDistributionDocumentFieldsType>({
@@ -29,6 +31,14 @@ export const gnosisPayRewardDistributionSchema = new Schema<GnosisPayRewardDistr
   blockNumber: { type: Number, required: true },
   amount: { type: Number, required: true },
   safe: mongooseSchemaAddressField,
+  week: {
+    type: String, required: false,
+    validate: {
+      validator: (value: string) => isValidWeekId(value),
+      message: '{VALUE} is not a valid week ID. Expected format: YYYY-MM-DD',
+    },
+    default: null
+  },
 });
 
 type GnosisPayRewardDistributionModelType = Model<GnosisPayRewardDistributionDocumentFieldsType>;

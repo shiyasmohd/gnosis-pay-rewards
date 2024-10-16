@@ -2,10 +2,9 @@
 import { Address, isAddress } from 'viem';
 import { ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
 import {
-  WeekCashbackRewardDocumentFieldsType_Populated,
   WeekCashbackRewardDocumentFieldsType_Unpopulated,
 } from '../database/weekReward';
-import { WeekIdFormatType, weekIdFormat } from '../database/weekData';
+import { WeekIdFormatType, weekIdFormat } from '../database/weekSnapshot';
 import { dayjsUtc } from './dayjsUtc';
 import { gnosisTokenBalanceSnapshotModelName } from './gnosisTokenBalanceSnapshot';
 import { mongooseSchemaAddressField } from './sharedSchemaFields';
@@ -50,6 +49,11 @@ const weekCashbackRewardSchema = new Schema<WeekCashbackRewardDocumentFieldsType
       type: Number,
       required: true,
       default: 0,
+    },
+    earnedReward: {
+      type: Number,
+      required: false,
+      default: null,
     },
     transactions: [
       {
@@ -133,6 +137,7 @@ export async function createWeekRewardsSnapshotDocument(
       estimatedReward: 0,
       transactions: [],
       gnoBalanceSnapshots: [],
+      earnedReward: null,
     }).save({ session }) as any;
   }
 

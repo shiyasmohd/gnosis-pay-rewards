@@ -1,7 +1,7 @@
 import { ClientSession, Model, Mongoose, Schema } from 'mongoose';
 import { gnosisPayTransactionModelName } from './gnosisPayTransaction.js';
 import { dayjsUtc } from './dayjsUtc.js';
-import { WeekIdFormatType, WeekSnapshotDocumentFieldsType, toWeekId } from '../database/weekData.js';
+import { WeekIdFormatType, WeekSnapshotDocumentFieldsType, toWeekId } from '../database/weekSnapshot';
 import { isHash } from 'viem';
 
 export const weekDataSchema = new Schema<WeekSnapshotDocumentFieldsType>(
@@ -68,6 +68,7 @@ export async function createWeekMetricsSnapshotDocument(
     date: yyyyMMDD,
     netUsdVolume: 0,
     transactions: [],
+    week: yyyyMMDD,
   }).save({ session: mongooseSession });
 }
 
