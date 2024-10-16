@@ -1,6 +1,6 @@
 import {
-  createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
+  GnosisPayRewardDistributionModelType,
   toGnosisPayRewardDistributionDocumentId,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { gnosisPayRewardDistributionSafeAddress, gnoToken } from '@karpatkey/gnosis-pay-rewards-sdk';
@@ -8,7 +8,7 @@ import { Address, formatUnits, isAddressEqual } from 'viem';
 import { getGnosisPayRewardDistributionLogs } from '../gp/getGnosisPayRewardDistributionLogs.js';
 
 type MongooseModels = {
-  gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
+  gnosisPayRewardDistributionModel: GnosisPayRewardDistributionModelType;
 };
 
 export async function processGnosisPayRewardDistributionLog({

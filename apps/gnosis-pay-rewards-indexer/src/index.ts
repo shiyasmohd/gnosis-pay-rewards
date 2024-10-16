@@ -4,17 +4,17 @@ import { gnosisChainPublicClient as client } from './publicClient.js';
 import { startIndexing, StartIndexingParamsType } from './core.js';
 import { FETCH_BLOCK_SIZE, MONGODB_URI, RESUME_INDEXING } from './config/env.js';
 import {
+  createBlockModel,
   createConnection,
   createGnosisPayRewardDistributionModel,
+  createGnosisPaySafeAddressModel,
+  createGnosisPayTransactionModel,
   createGnosisTokenBalanceSnapshotModel,
+  createLoggerModel,
   createMongooseLogger,
-  getBlockModel,
-  getGnosisPaySafeAddressModel,
-  getGnosisPayTransactionModel,
-  getLoggerModel,
-  getTokenModel,
-  getWeekCashbackRewardModel,
-  getWeekMetricsSnapshotModel,
+  createTokenModel,
+  createWeekCashbackRewardModel,
+  createWeekMetricsSnapshotModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 
 async function main(resumeIndexing: boolean = RESUME_INDEXING) {
@@ -24,13 +24,13 @@ async function main(resumeIndexing: boolean = RESUME_INDEXING) {
     console.log('Connected to mongodb at', mongooseConnection.connection.host);
 
     const mongooseModels: StartIndexingParamsType['mongooseModels'] = {
-      gnosisPaySafeAddressModel: getGnosisPaySafeAddressModel(mongooseConnection),
-      gnosisPayTransactionModel: getGnosisPayTransactionModel(mongooseConnection),
-      weekCashbackRewardModel: getWeekCashbackRewardModel(mongooseConnection),
-      weekMetricsSnapshotModel: getWeekMetricsSnapshotModel(mongooseConnection),
-      gnosisPayTokenModel: getTokenModel(mongooseConnection),
-      loggerModel: getLoggerModel(mongooseConnection),
-      blockModel: getBlockModel(mongooseConnection),
+      gnosisPaySafeAddressModel: createGnosisPaySafeAddressModel(mongooseConnection),
+      gnosisPayTransactionModel: createGnosisPayTransactionModel(mongooseConnection),
+      weekCashbackRewardModel: createWeekCashbackRewardModel(mongooseConnection),
+      weekMetricsSnapshotModel: createWeekMetricsSnapshotModel(mongooseConnection),
+      gnosisPayTokenModel: createTokenModel(mongooseConnection),
+      loggerModel: createLoggerModel(mongooseConnection),
+      blockModel: createBlockModel(mongooseConnection),
       gnosisTokenBalanceSnapshotModel: createGnosisTokenBalanceSnapshotModel(mongooseConnection),
       gnosisPayRewardDistributionModel: createGnosisPayRewardDistributionModel(mongooseConnection),
     };

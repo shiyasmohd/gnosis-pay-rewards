@@ -1,8 +1,9 @@
-import { Address, PublicClient, Transport, ContractFunctionZeroDataError, getContract, isAddressEqual } from 'viem';
-import { getGnosisPaySafeAddressModel } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
-import { getGnosisPaySafeModules } from './getGnosisPaySafeOwners.js';
+import { GnosisPaySafeAddressModelType } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
+import { Address, ContractFunctionZeroDataError, getContract, isAddressEqual, PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
+
 import { gnosisPaySafeAvatarFunctionAbiItem } from './commons.js';
+import { getGnosisPaySafeModules } from './getGnosisPaySafeOwners.js';
 
 /**
  * Check if an address is a Gnosis Safe address.
@@ -17,8 +18,14 @@ export async function isGnosisPaySafeAddress({
   gnosisPaySafeAddressModel,
 }: {
   address: Address;
+  /**
+   * The public client to use to do onchain checks
+   */
   client: PublicClient<Transport, typeof gnosis>;
-  gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
+  /**
+   * The mongoose model to use to check if the address is a Gnosis Safe address in the database
+   */
+  gnosisPaySafeAddressModel: GnosisPaySafeAddressModelType;
 }): Promise<{
   isGnosisPaySafe: boolean;
   source: 'chain' | 'database';

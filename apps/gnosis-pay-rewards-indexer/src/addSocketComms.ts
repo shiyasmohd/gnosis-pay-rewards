@@ -1,9 +1,9 @@
 import { GnosisPayTransactionFieldsType_Populated } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
-  getGnosisPayTransactionModel,
   getCurrentWeekMetricsSnapshotDocument,
-  getWeekMetricsSnapshotModel,
   createWeekMetricsSnapshotDocument,
+  GnosisPayTransactionModelType,
+  WeekMetricsSnapshotModelType,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { buildSocketIoServer } from './server.js';
 
@@ -13,8 +13,8 @@ export function addSocketComms({
   weekMetricsSnapshotModel,
 }: {
   socketIoServer: ReturnType<typeof buildSocketIoServer>;
-  gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
-  weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
+  gnosisPayTransactionModel: GnosisPayTransactionModelType;
+  weekMetricsSnapshotModel: WeekMetricsSnapshotModelType;
 }) {
   // Emit the 10 recent pending rewards to the UI when a client connects
   socketIoServer.on('connection', async (socketClient) => {

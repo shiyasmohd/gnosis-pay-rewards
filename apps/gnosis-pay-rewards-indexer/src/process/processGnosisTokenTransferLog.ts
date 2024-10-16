@@ -2,8 +2,9 @@ import {
   createGnosisTokenBalanceSnapshotDocument,
   createGnosisTokenBalanceSnapshotModel,
   createWeekRewardsSnapshotDocument,
-  getGnosisPaySafeAddressModel,
-  getWeekCashbackRewardModel,
+  GnosisPaySafeAddressModelType,
+  GnosisTokenBalanceSnapshotModelType,
+  WeekCashbackRewardModelType,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { gnoToken, toWeekId, getTokenBalanceOf } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Address, formatUnits } from 'viem';
@@ -14,9 +15,9 @@ import { isGnosisPaySafeAddress } from '../gp/isGnosisPaySafeAddress.js';
 import { getBlockByNumber } from './actions.js';
 
 type MongooseModels = {
-  gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
-  gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
-  weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+  gnosisPaySafeAddressModel: GnosisPaySafeAddressModelType;
+  gnosisTokenBalanceSnapshotModel: GnosisTokenBalanceSnapshotModelType;
+  weekCashbackRewardModel: WeekCashbackRewardModelType;
 };
 
 export async function processGnosisTokenTransferLog({
@@ -92,10 +93,7 @@ export async function takeGnosisTokenBalanceSnapshot({
   safeAddress,
   blockNumber,
   client,
-}: {
-  gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
-  weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
-  gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
+}: MongooseModels & {
   safeAddress: Address;
   client: GnosisChainPublicClient;
   blockNumber?: bigint;
@@ -115,7 +113,7 @@ export async function takeGnosisTokenBalanceSnapshot({
     blockNumber,
   });
 
-  const weekId = toWeekId(Number(block.timestamp));
+  const weekId = toWeekId(block.timestamp);
 
   const mongooseSession = await gnosisTokenBalanceSnapshotModel.startSession();
   mongooseSession.startTransaction();

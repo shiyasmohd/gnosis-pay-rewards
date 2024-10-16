@@ -1,17 +1,17 @@
 import { gnosisPayStartBlock, bigMath, gnosisPayTokens, IndexerStateAtomType } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
-  getGnosisPayTransactionModel,
-  getTokenModel,
+  createGnosisPayTransactionModel,
+  createTokenModel,
   saveGnosisPayTokensToDatabase,
   createMongooseLogger,
-  getLoggerModel,
-  getWeekMetricsSnapshotModel,
-  getBlockModel,
-  getGnosisPaySafeAddressModel,
-  getWeekCashbackRewardModel,
+  createWeekMetricsSnapshotModel,
+  createBlockModel,
+  createWeekCashbackRewardModel,
   LogLevel,
   createGnosisTokenBalanceSnapshotModel,
   createGnosisPayRewardDistributionModel,
+  createGnosisPaySafeAddressModel,
+  createLoggerModel,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Mongoose } from 'mongoose';
 import { atom, createStore } from 'jotai';
@@ -44,13 +44,13 @@ export type StartIndexingParamsType = {
   readonly fetchBlockSize?: bigint;
   mongooseConnection: Mongoose;
   mongooseModels: {
-    gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
-    gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
-    weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
-    weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
-    gnosisPayTokenModel: ReturnType<typeof getTokenModel>;
-    loggerModel: ReturnType<typeof getLoggerModel>;
-    blockModel: ReturnType<typeof getBlockModel>;
+    gnosisPaySafeAddressModel: ReturnType<typeof createGnosisPaySafeAddressModel>;
+    gnosisPayTransactionModel: ReturnType<typeof createGnosisPayTransactionModel>;
+    weekCashbackRewardModel: ReturnType<typeof createWeekCashbackRewardModel>;
+    weekMetricsSnapshotModel: ReturnType<typeof createWeekMetricsSnapshotModel>;
+    gnosisPayTokenModel: ReturnType<typeof createTokenModel>;
+    loggerModel: ReturnType<typeof createLoggerModel>;
+    blockModel: ReturnType<typeof createBlockModel>;
     gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
     gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
   };

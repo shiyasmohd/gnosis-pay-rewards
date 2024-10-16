@@ -8,17 +8,17 @@ import {
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   createMongooseLogger,
-  getGnosisPayTransactionModel,
-  getWeekCashbackRewardModel,
   createWeekCashbackRewardDocumentId,
   createWeekRewardsSnapshotDocument,
   createGnosisPayRewardDistributionModel,
   GnosisPayRewardDistributionDocumentFieldsType,
-  getWeekMetricsSnapshotModel,
-  GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
-  getGnosisPaySafeAddressModel,
-  createGnosisPaySafeAddressDocument,
   createGnosisTokenBalanceSnapshotModel,
+  createGnosisPaySafeAddressDocument,
+  createWeekMetricsSnapshotModel,
+  createWeekCashbackRewardModel,
+  createGnosisPayTransactionModel,
+  createGnosisPaySafeAddressModel,
+  GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
 } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { Response } from 'express';
 import dayjs from 'dayjs';
@@ -44,11 +44,11 @@ export function addHttpRoutes({
   expressApp: ReturnType<typeof buildExpressApp>;
   mongooseModels: {
     gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
-    gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
-    gnosisPayTransactionModel: ReturnType<typeof getGnosisPayTransactionModel>;
-    weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+    gnosisPaySafeAddressModel: ReturnType<typeof createGnosisPaySafeAddressModel>;
+    gnosisPayTransactionModel: ReturnType<typeof createGnosisPayTransactionModel>;
+    weekCashbackRewardModel: ReturnType<typeof createWeekCashbackRewardModel>;
     gnosisPayRewardDistributionModel: ReturnType<typeof createGnosisPayRewardDistributionModel>;
-    weekMetricsSnapshotModel: ReturnType<typeof getWeekMetricsSnapshotModel>;
+    weekMetricsSnapshotModel: ReturnType<typeof createWeekMetricsSnapshotModel>;
   };
   client: PublicClient<Transport, typeof gnosis>;
   logger: ReturnType<typeof createMongooseLogger>;
@@ -400,8 +400,8 @@ async function getWeekRewardSnapshotWithFallback({
   safeAddress: Address;
   week: WeekIdFormatType;
   client: PublicClient<Transport, typeof gnosis>;
-  gnosisPaySafeAddressModel: ReturnType<typeof getGnosisPaySafeAddressModel>;
-  weekCashbackRewardModel: ReturnType<typeof getWeekCashbackRewardModel>;
+  gnosisPaySafeAddressModel: ReturnType<typeof createGnosisPaySafeAddressModel>;
+  weekCashbackRewardModel: ReturnType<typeof createWeekCashbackRewardModel>;
   gnosisTokenBalanceSnapshotModel: ReturnType<typeof createGnosisTokenBalanceSnapshotModel>;
 }) {
   const documentId = createWeekCashbackRewardDocumentId(week, safeAddress);
