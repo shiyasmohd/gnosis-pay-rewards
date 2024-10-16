@@ -1,6 +1,5 @@
 import { gnosisPaySpendAddress, gnosisPaySpenderModuleAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { PublicClient, Transport } from 'viem';
-import { gnosis } from 'viem/chains';
+import { GnosisPayGetLogsParams } from './commons';
 
 export async function getGnosisPaySpendLogs({
   client,
@@ -8,25 +7,7 @@ export async function getGnosisPaySpendLogs({
   toBlock,
   retries = 30,
   verbose = false,
-}: {
-  /**
-   * The start block to index from
-   */
-  fromBlock: bigint;
-  /**
-   * The end block to index to
-   */
-  toBlock: bigint;
-  /**
-   * The public client to use
-   */
-  client: PublicClient<Transport, typeof gnosis>;
-  /**
-   * Number of retries to attempt if the request fails
-   */
-  retries?: number;
-  verbose?: boolean;
-}) {
+}: GnosisPayGetLogsParams) {
   try {
     const logs = await client.getLogs({
       fromBlock,

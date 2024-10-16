@@ -1,7 +1,6 @@
+import { gnosisPayOgNftAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { Address, PublicClient, Transport, erc721Abi } from 'viem';
 import { gnosis } from 'viem/chains';
-
-const OG_NFT_ADDRESS = '0x88997988a6A5aAF29BA973d298D276FE75fb69ab' as const;
 
 export async function hasGnosisPayOgNft(
   client: PublicClient<Transport, typeof gnosis>,
@@ -11,7 +10,7 @@ export async function hasGnosisPayOgNft(
     allowFailure: false,
     contracts: userAddressArray.map((address) => ({
       abi: erc721Abi,
-      address: OG_NFT_ADDRESS,
+      address: gnosisPayOgNftAddress,
       functionName: 'balanceOf',
       args: [address],
     })),

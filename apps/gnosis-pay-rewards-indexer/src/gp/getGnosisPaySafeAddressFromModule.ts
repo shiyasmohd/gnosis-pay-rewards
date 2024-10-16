@@ -1,5 +1,6 @@
 import { Address, PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
+import { gnosisPaySafeAvatarFunctionAbiItem } from './commons';
 
 export async function getGnosisPaySafeAddressFromModule({
   rolesModuleAddress,
@@ -11,14 +12,7 @@ export async function getGnosisPaySafeAddressFromModule({
   blockNumber: bigint;
 }) {
   const gnosisPaySafeAddress = (await client.readContract({
-    abi: [
-      {
-        name: 'avatar',
-        outputs: [{ internalType: 'address', name: '', type: 'address' }],
-        stateMutability: 'view',
-        type: 'function',
-      },
-    ],
+    abi: [gnosisPaySafeAvatarFunctionAbiItem],
     functionName: 'avatar',
     address: rolesModuleAddress,
     blockNumber,

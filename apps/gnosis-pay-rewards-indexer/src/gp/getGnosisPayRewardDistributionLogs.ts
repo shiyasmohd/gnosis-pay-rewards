@@ -1,6 +1,6 @@
 import { gnoToken, gnosisPayRewardDistributionSafeAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { PublicClient, Transport, erc20Abi } from 'viem';
-import { gnosis } from 'viem/chains';
+import { erc20Abi } from 'viem';
+import { GnosisPayGetLogsParams } from './commons';
 
 export async function getGnosisPayRewardDistributionLogs({
   client,
@@ -8,25 +8,7 @@ export async function getGnosisPayRewardDistributionLogs({
   toBlock,
   retries = 30,
   verbose = false,
-}: {
-  /**
-   * The start block to index from
-   */
-  fromBlock: bigint;
-  /**
-   * The end block to index to
-   */
-  toBlock: bigint;
-  /**
-   * The public client to use
-   */
-  client: PublicClient<Transport, typeof gnosis>;
-  /**
-   * Number of retries to attempt if the request fails
-   */
-  retries?: number;
-  verbose?: boolean;
-}) {
+}: GnosisPayGetLogsParams) {
   try {
     const logs = await client.getLogs({
       address: gnoToken.address,

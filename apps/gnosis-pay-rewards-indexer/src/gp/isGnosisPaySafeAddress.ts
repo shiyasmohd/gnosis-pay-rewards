@@ -2,6 +2,7 @@ import { Address, PublicClient, Transport, ContractFunctionZeroDataError, getCon
 import { getGnosisPaySafeAddressModel } from '@karpatkey/gnosis-pay-rewards-sdk/mongoose';
 import { getGnosisPaySafeModules } from './getGnosisPaySafeOwners.js';
 import { gnosis } from 'viem/chains';
+import { gnosisPaySafeAvatarFunctionAbiItem } from './commons.js';
 
 /**
  * Check if an address is a Gnosis Safe address.
@@ -68,13 +69,13 @@ export async function isGnosisPaySafeAddress({
     if (delayModuleBytecode && rolesModuleBytecode) {
       const delayModuleContract = getContract({
         address: safeModules[0],
-        abi: getAvatarAbi,
+        abi: [gnosisPaySafeAvatarFunctionAbiItem],
         client,
       });
 
       const rolesModuleContract = getContract({
         address: safeModules[1],
-        abi: getAvatarAbi,
+        abi: [gnosisPaySafeAvatarFunctionAbiItem],
         client,
       });
 
@@ -100,13 +101,3 @@ export async function isGnosisPaySafeAddress({
     source: 'chain',
   };
 }
-
-const getAvatarAbi = [
-  {
-    inputs: [],
-    name: 'avatar',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const;
