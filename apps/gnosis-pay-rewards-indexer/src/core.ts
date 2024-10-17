@@ -182,40 +182,25 @@ export async function startIndexing({
       await logger.logDebug({ message });
     } catch (e) {}
 
-    const spendLogs = await getGnosisPaySpendLogs({
+    const getLogsCommonParams = {
       client,
       fromBlock: fromBlockNumber,
       toBlock: toBlockNumber,
       verbose: true,
-    });
+    };
 
-    const refundLogs = await getGnosisPayRefundLogs({
-      client,
-      fromBlock: fromBlockNumber,
-      toBlock: toBlockNumber,
-      verbose: true,
-      tokenAddresses: gnosisPayTokens.map((token) => token.address),
-    });
-
-    const gnosisTokenTransferLogs = await getGnosisTokenTransferLogs({
-      client,
-      fromBlock: fromBlockNumber,
-      toBlock: toBlockNumber,
-      verbose: true,
-    });
-
-    const gnosisPayRewardDistributionLogs = await getGnosisPayRewardDistributionLogs({
-      client,
-      fromBlock: fromBlockNumber,
-      toBlock: toBlockNumber,
-      verbose: true,
-    });
+    // Fetch all the logs
+    const spendLogs = await getGnosisPaySpendLogs(getLogsCommonParams);
+    const refundLogs = await getGnosisPayRefundLogs(getLogsCommonParams);
+    const gnosisTokenTransferLogs = await getGnosisTokenTransferLogs(getLogsCommonParams);
+    const gnosisPayRewardDistributionLogs = await getGnosisPayRewardDistributionLogs(getLogsCommonParams);
 
     try {
-      const message = `Found ${spendLogs.length} spend logs, ${refundLogs.length} refund logs, ${gnosisTokenTransferLogs.length} gnosis token transfer logs, and ${gnosisPayRewardDistributionLogs.length} gnosis pay reward distribution logs in #${fromBlockNumber} to #${toBlockNumber}`;
+      const message = `Found ${spendLogs.length} spend, ${refundLogs.length} refund, ${gnosisTokenTransferLogs.length} gnosis token transfers, and ${gnosisPayRewardDistributionLogs.length} gnosis pay reward distribution logs in block ${fromBlockNumber} to ${toBlockNumber}`;
       console.log(message);
-      await logger.logDebug({ message });
+      await logger.logDebug({ message, metadata: { fromBlockNumber, toBlockNumber } });
     } catch (e) {}
+
 
     await handleBatchLogs({
       client,
