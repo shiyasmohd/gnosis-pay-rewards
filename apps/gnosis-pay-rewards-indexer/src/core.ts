@@ -200,6 +200,7 @@ export async function startIndexing({
     const refundLogs = await getGnosisPayRefundLogs(getLogsCommonParams);
     const gnosisTokenTransferLogs = await getGnosisTokenTransferLogs(getLogsCommonParams);
     const gnosisPayRewardDistributionLogs = await getGnosisPayRewardDistributionLogs(getLogsCommonParams);
+    const claimOgNftLogs = await getGnosisPayClaimOgNftLogs(getLogsCommonParams);
 
     try {
       const message = `Found ${spendLogs.length} spend, ${refundLogs.length} refund, ${gnosisTokenTransferLogs.length} gnosis token transfers, and ${gnosisPayRewardDistributionLogs.length} gnosis pay reward distribution logs in block ${fromBlockNumber} to ${toBlockNumber}`;
@@ -479,7 +480,7 @@ async function handleGnosisPayOgNftTransferLogs({
 function handleError(
   logger: ReturnType<typeof createMongooseLogger>,
   error: Error,
-  logish: { eventName: string; transactionHash: string; blockNumber: bigint },
+  logish: { eventName: string; transactionHash: string; blockNumber: bigint }
 ) {
   if (error.cause !== 'LOG_ALREADY_PROCESSED') {
     console.error(error);
