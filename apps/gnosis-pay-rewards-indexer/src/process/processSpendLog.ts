@@ -12,6 +12,7 @@ import {
   usdcBridgeToken,
   circleUsdcToken,
   getTokenBalanceOf,
+  getFourWeekVolumeThreshold,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   createWeekRewardsSnapshotDocument,
@@ -80,7 +81,7 @@ export async function processSpendLog({
       token: gnoToken.address,
     });
 
-    const tokenUsdPrice = await getTokenUsdPrice({
+    const safeTokenUsdPrice = await getTokenUsdPrice({
       blockNumber,
       client,
       token: spentToken.address,
@@ -94,7 +95,7 @@ export async function processSpendLog({
 
     const weekId = toWeekId(block.timestamp);
     const amount = Number(formatUnits(spendAmountRaw, spentToken.decimals));
-    const amountUsd = tokenUsdPrice * amount;
+    const amountUsd = safeTokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
 
     const savedData = await saveToDatabase(
@@ -109,6 +110,7 @@ export async function processSpendLog({
         gnoBalance,
         gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
         gnoUsdPrice,
+        safeTokenUsdPrice,
         estiamtedGnoRewardAmount: 0,
         safeAddress,
         type: GnosisPayTransactionType.Spend,
@@ -178,7 +180,7 @@ export async function processRefundLog({
       token: gnoToken.address,
     });
 
-    const tokenUsdPrice = await getTokenUsdPrice({
+    const safeTokenUsdPrice = await getTokenUsdPrice({
       blockNumber,
       client,
       token: spentToken.address,
@@ -192,7 +194,7 @@ export async function processRefundLog({
 
     const weekId = toWeekId(block.timestamp);
     const amount = Number(formatUnits(amountRaw, spentToken.decimals));
-    const amountUsd = tokenUsdPrice * amount;
+    const amountUsd = safeTokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
 
     const savedData = await saveToDatabase(
@@ -207,6 +209,7 @@ export async function processRefundLog({
         gnoBalance,
         gnoBalanceRaw: gnosisPaySafeGnoTokenBalance.toString(),
         gnoUsdPrice,
+        safeTokenUsdPrice,
         estiamtedGnoRewardAmount: 0,
         safeAddress,
         type: GnosisPayTransactionType.Refund,
@@ -304,7 +307,7 @@ async function getTokenUsdPrice(
 }
 
 async function saveToDatabase(
-  transactionPayload: GnosisPayTransactionFieldsType_Unpopulated,
+  transactionPayload: GnosisPayTransactionFieldsType_Unpopulated & { safeTokenUsdPrice: number },
   gnosisPaySafeAddressPayload: GnosisPaySafeAddressDocumentFieldsType_Unpopulated,
   mongooseModels: MongooseConfiguredModels,
 ): Promise<ProcessLogFnDataType> {
@@ -396,16 +399,19 @@ async function saveToDatabase(
   const fourWeeksUsdVolume = fourWeekSnapshots.reduce((acc, curr) => acc + curr.netUsdVolume, 0);
 
   // Calculate the estimated reward for the week
-  const estimatedReward = calculateWeekRewardAmount({
+  const estimatedGnoReward = calculateWeekRewardAmount({
     fourWeeksUsdVolume,
     gnoBalance: weekRewardDocument.minGnoBalance,
     gnoUsdPrice,
     isOgNftHolder: gnosisPaySafeAddressPayload.isOg,
     weekUsdVolume: weekRewardDocument.netUsdVolume,
+    // Convert the four week volume threshold from native token units to USD
+    fourWeeksUsdVolumeThreshold:
+      getFourWeekVolumeThreshold(transactionPayload.amountToken) * transactionPayload.safeTokenUsdPrice,
   });
 
   // Calculate the estimated reward for the week
-  weekRewardDocument.estimatedReward = estimatedReward;
+  weekRewardDocument.estimatedReward = estimatedGnoReward;
   await weekRewardDocument.save({ session: mongooseSession });
 
   // Create the safe address document
