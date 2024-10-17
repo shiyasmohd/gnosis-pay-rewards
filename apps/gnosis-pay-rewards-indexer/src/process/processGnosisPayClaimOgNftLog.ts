@@ -65,7 +65,6 @@ export async function processGnosisPayClaimOgNftLog({
       });
     }
 
-
     // Update the safe
     safe.isOg = true;
 

@@ -92,7 +92,7 @@ export async function processSpendLog({
       token: gnoToken.address,
     });
 
-    const weekId = toWeekId(Number(block.timestamp));
+    const weekId = toWeekId(block.timestamp);
     const amount = Number(formatUnits(spendAmountRaw, spentToken.decimals));
     const amountUsd = tokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));
@@ -190,7 +190,7 @@ export async function processRefundLog({
       token: gnoToken.address,
     });
 
-    const weekId = toWeekId(Number(block.timestamp));
+    const weekId = toWeekId(block.timestamp);
     const amount = Number(formatUnits(amountRaw, spentToken.decimals));
     const amountUsd = tokenUsdPrice * amount;
     const gnoBalance = Number(formatUnits(gnosisPaySafeGnoTokenBalance, gnoToken.decimals));

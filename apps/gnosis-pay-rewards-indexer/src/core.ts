@@ -207,7 +207,6 @@ export async function startIndexing({
       await logger.logDebug({ message, metadata: { fromBlockNumber, toBlockNumber } });
     } catch (e) {}
 
-
     await handleBatchLogs({
       client,
       mongooseModels: {
@@ -445,8 +444,8 @@ async function handleGnosisPayRewardsDistributionLogs({
   // Log the results
   for (const [week, { receivedRewardsCount, notReceivedRewardsCount }] of addressesPerWeek) {
     try {
-    const message = `Week ${week} rewards distribution: ${receivedRewardsCount} received, ${notReceivedRewardsCount} not received`;
-    console.log(message);
+      const message = `Week ${week} rewards distribution: ${receivedRewardsCount} received, ${notReceivedRewardsCount} not received`;
+      console.log(message);
       await logger.logDebug({ message });
     } catch (e) {}
   }
@@ -480,7 +479,7 @@ async function handleGnosisPayOgNftTransferLogs({
 function handleError(
   logger: ReturnType<typeof createMongooseLogger>,
   error: Error,
-  logish: { eventName: string; transactionHash: string; blockNumber: bigint }
+  logish: { eventName: string; transactionHash: string; blockNumber: bigint },
 ) {
   if (error.cause !== 'LOG_ALREADY_PROCESSED') {
     console.error(error);

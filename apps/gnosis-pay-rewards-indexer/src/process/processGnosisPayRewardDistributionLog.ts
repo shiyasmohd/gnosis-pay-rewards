@@ -66,16 +66,15 @@ export async function processGnosisPayRewardDistributionLog({
     const mongooseSession = await mongooseModels.gnosisPayRewardDistributionModel.startSession();
     mongooseSession.startTransaction();
 
-    const distributionDocument = await new gnosisPayRewardDistributionModel<
-      GnosisPayRewardDistributionDocumentFieldsType
-    >({
-      _id: documentId,
-      amount: Number(formatUnits(log.args.value as bigint, gnoToken.decimals)),
-      blockNumber: Number(blockNumber),
-      transactionHash,
-      safe: log.args.to.toLowerCase() as Address,
-      week: lastWeekId,
-    });
+    const distributionDocument =
+      await new gnosisPayRewardDistributionModel<GnosisPayRewardDistributionDocumentFieldsType>({
+        _id: documentId,
+        amount: Number(formatUnits(log.args.value as bigint, gnoToken.decimals)),
+        blockNumber: Number(blockNumber),
+        transactionHash,
+        safe: log.args.to.toLowerCase() as Address,
+        week: lastWeekId,
+      });
 
     await distributionDocument.save({ session: mongooseSession });
 
@@ -88,7 +87,7 @@ export async function processGnosisPayRewardDistributionLog({
         $set: {
           earnedReward: distributionDocument.amount,
         },
-      }
+      },
     );
 
     const distributionJson = distributionDocument.toJSON();
