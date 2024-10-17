@@ -1,5 +1,4 @@
-import { gnosisPaySpendAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { Address } from 'viem';
+import { gnosisPaySpendAddress, moneriumEureToken,  moneriumGbpToken, usdcBridgeToken, circleUsdcToken } from '@karpatkey/gnosis-pay-rewards-sdk';
 
 import { erc20TransferEventAbiItem, GnosisPayGetLogsParams } from './commons';
 
@@ -7,12 +6,9 @@ export async function getGnosisPayRefundLogs({
   client,
   fromBlock,
   toBlock,
-  tokenAddresses,
   retries = 30,
   verbose = false,
-}: GnosisPayGetLogsParams & {
-  tokenAddresses: Address[];
-}) {
+}: GnosisPayGetLogsParams) {
   try {
     const logs = await client.getLogs({
       fromBlock,
@@ -21,7 +17,7 @@ export async function getGnosisPayRefundLogs({
       args: {
         from: gnosisPaySpendAddress,
       },
-      address: tokenAddresses,
+      address: [moneriumEureToken,  moneriumGbpToken, usdcBridgeToken, circleUsdcToken, ].map((token) => token.address),
       strict: true,
     });
     return logs;
@@ -30,7 +26,7 @@ export async function getGnosisPayRefundLogs({
       console.error(error);
     }
     if (retries > 0) {
-      return getGnosisPayRefundLogs({ client, fromBlock, toBlock, tokenAddresses, retries: retries - 1 });
+      return getGnosisPayRefundLogs({ client, fromBlock, toBlock, retries: retries - 1 });
     }
 
     throw error;
