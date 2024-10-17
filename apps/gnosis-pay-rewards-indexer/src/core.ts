@@ -18,7 +18,6 @@ import { atom, createStore } from 'jotai';
 import { PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
 
-import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
 import { clampToBlockRange } from './utils.js';
 import { buildSocketIoServer, buildExpressApp } from './server.js';
 import { SOCKET_IO_SERVER_PORT, HTTP_SERVER_HOST, HTTP_SERVER_PORT } from './config/env.js';
@@ -26,12 +25,15 @@ import { waitForBlock } from './waitForBlock.js';
 
 import { addHttpRoutes } from './addHttpRoutes.js';
 import { addSocketComms } from './addSocketComms.js';
-import { processRefundLog, processSpendLog } from './process/processSpendLog.js';
-import { processGnosisTokenTransferLog } from './process/processGnosisTokenTransferLog.js';
-import { processGnosisPayRewardDistributionLog } from './process/processGnosisPayRewardDistributionLog.js';
+import { getGnosisPaySpendLogs } from './gp/getGnosisPaySpendLogs.js';
 import { getGnosisPayRefundLogs } from './gp/getGnosisPayRefundLogs.js';
 import { getGnosisTokenTransferLogs } from './gp/getGnosisTokenTransferLogs.js';
 import { getGnosisPayRewardDistributionLogs } from './gp/getGnosisPayRewardDistributionLogs.js';
+import { getGnosisPayClaimOgNftLogs } from './gp/getGnosisPayClaimOgNftLogs.js';
+import { processRefundLog, processSpendLog } from './process/processSpendLog.js';
+import { processGnosisTokenTransferLog } from './process/processGnosisTokenTransferLog.js';
+import { processGnosisPayRewardDistributionLog } from './process/processGnosisPayRewardDistributionLog.js';
+import { processGnosisPayClaimOgNftLog } from './process/processGnosisPayClaimOgNftLog.js';
 
 export type StartIndexingParamsType = {
   client: PublicClient<Transport, typeof gnosis>;
@@ -238,6 +240,15 @@ export async function startIndexing({
       logger,
     });
 
+    await handleGnosisPayOgNftTransferLogs({
+      client,
+      mongooseModels: {
+        gnosisPaySafeAddressModel,
+      },
+      logs: claimOgNftLogs,
+      logger,
+    });
+
     // Move to the next block range
     const nextFromBlockNumber = fromBlockNumber + fetchBlockSize;
     const nextToBlockNumber = clampToBlockRange(nextFromBlockNumber, latestBlockNumber, fetchBlockSize);
@@ -438,6 +449,31 @@ async function handleGnosisPayRewardsDistributionLogs({
     console.log(message);
       await logger.logDebug({ message });
     } catch (e) {}
+  }
+}
+
+async function handleGnosisPayOgNftTransferLogs({
+  mongooseModels,
+  logger,
+  client,
+  logs,
+}: WithLogger<
+  Omit<Parameters<typeof processGnosisPayClaimOgNftLog>[0], 'log'> & {
+    logs: LogsType<typeof getGnosisPayClaimOgNftLogs>;
+  }
+>) {
+  for (const log of logs) {
+    try {
+      const { error } = await processGnosisPayClaimOgNftLog({
+        client,
+        log,
+        mongooseModels,
+      });
+
+      if (error) throw error;
+    } catch (e) {
+      handleError(logger, e as Error, log as any);
+    }
   }
 }
 
