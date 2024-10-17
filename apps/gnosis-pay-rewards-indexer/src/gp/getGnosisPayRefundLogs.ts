@@ -1,4 +1,10 @@
-import { gnosisPaySpendAddress, moneriumEureToken,  moneriumGbpToken, usdcBridgeToken, circleUsdcToken } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  gnosisPaySpendAddress,
+  moneriumEureToken,
+  moneriumGbpToken,
+  usdcBridgeToken,
+  circleUsdcToken,
+} from '@karpatkey/gnosis-pay-rewards-sdk';
 
 import { erc20TransferEventAbiItem, GnosisPayGetLogsParams } from './commons';
 
@@ -17,7 +23,7 @@ export async function getGnosisPayRefundLogs({
       args: {
         from: gnosisPaySpendAddress,
       },
-      address: [moneriumEureToken,  moneriumGbpToken, usdcBridgeToken, circleUsdcToken, ].map((token) => token.address),
+      address: [moneriumEureToken, moneriumGbpToken, usdcBridgeToken, circleUsdcToken].map((token) => token.address),
       strict: true,
     });
     return logs;
