@@ -1,8 +1,32 @@
+import { moneriumEureToken, moneriumGbpToken, usdcBridgeToken, circleUsdcToken } from './gnoisPayTokens';
+import { Address, getAddress } from 'viem';
+
 /**
- * The month-to-date USD volume threshold, over which the user is no
- * longer eligible for the GNO rewards.
+ * The month-to-date USD volume threshold for each currency.
+ * A maximum of EUR 20,000, USD 22,000, or GBP 18,000 will be eligible to accrue rewards per month for every user.
  */
-const MONTH_TO_DATE_USD_VOLUME_THRESHOLD = 20_000;
+const FOUR_WEEK_VOLUME_THRESHOLD = {
+  // USDC can be either circle's native USDC or bridged from Ethereum
+  [getAddress(circleUsdcToken.address)]: 22_000,
+  [getAddress(usdcBridgeToken.address)]: 22_000,
+  [getAddress(moneriumGbpToken.address)]: 18_000,
+  [getAddress(moneriumEureToken.address)]: 20_000,
+};
+
+/**
+ * Get the four week volume threshold for a given safe token address.
+ * @param safeToken - The safe token address to get the threshold for.
+ * @returns The four week volume threshold for the given safe token address.
+ * The threshold is in the same currency as the safe token, and must be converted to USD before using it in the reward calculation.
+ */
+export function getFourWeekVolumeThreshold(safeToken: Address): number {
+  const safeTokenAddress = getAddress(safeToken);
+  const volumeThreshold = FOUR_WEEK_VOLUME_THRESHOLD[safeTokenAddress];
+  if (volumeThreshold === undefined) {
+    throw new Error(`Invalid safe token address: ${safeTokenAddress}`);
+  }
+  return volumeThreshold;
+}
 
 type CalculateWeekRewardCommonParams = {
   /**
@@ -26,6 +50,11 @@ type CalculateWeekRewardCommonParams = {
    * Four weeks USD volume
    */
   fourWeeksUsdVolume: number;
+  /**
+   * The four week USD volume threshold for the safe token.
+   * Use `getFourWeekVolumeThreshold` and convert that to USD before passing it in here.
+   */
+  fourWeeksUsdVolumeThreshold: number;
 };
 
 /**
@@ -35,20 +64,23 @@ type CalculateWeekRewardCommonParams = {
 export function calculateWeekRewardAmount({
   gnoUsdPrice,
   isOgNftHolder,
-  weekUsdVolume,
   gnoBalance,
+  weekUsdVolume,
   fourWeeksUsdVolume,
+  fourWeeksUsdVolumeThreshold,
 }: CalculateWeekRewardCommonParams): number {
   if (gnoUsdPrice <= 0) {
     throw new Error('gnoUsdPrice must be greater than 0');
   }
 
-  // If the month-to-date USD volume is greater than the threshold, the user is eligible for the OG NFT holder reward
-  if (fourWeeksUsdVolume >= MONTH_TO_DATE_USD_VOLUME_THRESHOLD) {
-    return 0;
+  if (fourWeeksUsdVolumeThreshold <= 0) {
+    throw new Error('fourWeeksUsdVolumeThreshold must be greater than 0');
   }
 
-  if (weekUsdVolume <= 0 || gnoBalance === 0) {
+  // safeCurrency volume threshold - four-week volume + 1-week
+  const netVolume = fourWeeksUsdVolumeThreshold - fourWeeksUsdVolume + weekUsdVolume;
+  // If the month-to-date USD volume is greater than the threshold, the user is eligible for the OG NFT holder reward
+  if (netVolume >= fourWeeksUsdVolumeThreshold) {
     return 0;
   }
 
