@@ -72,10 +72,7 @@ export function createGnosisPaySafeAddressModel(mongooseConnection: Mongoose): G
     return mongooseConnection.models[gnosisPaySafeAddressModelName];
   }
 
-  return mongooseConnection.model(
-    gnosisPaySafeAddressModelName,
-    gnosisPaySafeAddressSchema,
-  );
+  return mongooseConnection.model(gnosisPaySafeAddressModelName, gnosisPaySafeAddressSchema);
 }
 
 export async function createGnosisPaySafeAddressDocument(

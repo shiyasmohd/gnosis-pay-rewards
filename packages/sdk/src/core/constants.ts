@@ -30,7 +30,6 @@ export const gnosisPayRewardDistributionSafeAddress = '0xCdF50be9061086e2eCfE6e4
  */
 export const gnosisPayStartBlock = 35_536_000n;
 
-
 /**
  * Gnosis Pay OG NFT address
  */

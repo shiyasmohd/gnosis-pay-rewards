@@ -56,7 +56,9 @@ export function createGnosisTokenBalanceSnapshotDocumentId(blockNumber: number, 
   return `${blockNumber}/${safeAddress.toLowerCase()}` as `${number}/${Address}`;
 }
 
-export function createGnosisTokenBalanceSnapshotModel(mongooseConnection: Mongoose): GnosisTokenBalanceSnapshotModelType {
+export function createGnosisTokenBalanceSnapshotModel(
+  mongooseConnection: Mongoose,
+): GnosisTokenBalanceSnapshotModelType {
   // Return cached model if it exists
   if (mongooseConnection.models[gnosisTokenBalanceSnapshotModelName]) {
     return mongooseConnection.models[gnosisTokenBalanceSnapshotModelName];

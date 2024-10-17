@@ -17,12 +17,12 @@ export type GnosisPayRewardDistributionDocumentFieldsType = {
 
 export const gnosisPayRewardDistributionSchema = new Schema<GnosisPayRewardDistributionDocumentFieldsType>({
   _id: {
-  type: String,
-  required: true,
-  validate: {
-    validator: (value: string) => {
-      const [transactionHash, address] = value.split('/');
-      return isHash(transactionHash) && isAddress(address);
+    type: String,
+    required: true,
+    validate: {
+      validator: (value: string) => {
+        const [transactionHash, address] = value.split('/');
+        return isHash(transactionHash) && isAddress(address);
       },
       message: '{VALUE} is not a valid hash. Expected format: 0x.../0x...',
     },
@@ -32,12 +32,13 @@ export const gnosisPayRewardDistributionSchema = new Schema<GnosisPayRewardDistr
   amount: { type: Number, required: true },
   safe: mongooseSchemaAddressField,
   week: {
-    type: String, required: false,
+    type: String,
+    required: false,
     validate: {
       validator: (value: string) => isValidWeekId(value),
       message: '{VALUE} is not a valid week ID. Expected format: YYYY-MM-DD',
     },
-    default: null
+    default: null,
   },
 });
 
@@ -49,10 +50,7 @@ export type GnosisPayRewardDistributionModelType = Model<GnosisPayRewardDistribu
  * @param address - The address.
  * @returns The document ID.
  */
-export function toGnosisPayRewardDistributionDocumentId(
-  transactionHash: `0x${string}`,
-  address: Address,
-) {
+export function toGnosisPayRewardDistributionDocumentId(transactionHash: `0x${string}`, address: Address) {
   return `${transactionHash}/${address.toLowerCase()}` as `${`0x${string}`}/${Address}`;
 }
 

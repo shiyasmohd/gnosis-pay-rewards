@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Address, isAddress } from 'viem';
 import { ClientSession, HydratedDocument, Model, Mongoose, Schema } from 'mongoose';
-import {
-  WeekCashbackRewardDocumentFieldsType_Unpopulated,
-} from '../database/weekReward';
+import { WeekCashbackRewardDocumentFieldsType_Unpopulated } from '../database/weekReward';
 import { WeekIdFormatType, weekIdFormat } from '../database/weekSnapshot';
 import { dayjsUtc } from './dayjsUtc';
 import { gnosisTokenBalanceSnapshotModelName } from './gnosisTokenBalanceSnapshot';
@@ -119,9 +117,7 @@ export async function createWeekRewardsSnapshotDocument(
   week: WeekIdFormatType,
   address: Address,
   session?: ClientSession,
-): Promise<
-  HydratedDocument<WeekCashbackRewardDocumentFieldsType_Unpopulated>
-> {
+): Promise<HydratedDocument<WeekCashbackRewardDocumentFieldsType_Unpopulated>> {
   address = address.toLowerCase() as Address;
   const documentId = createWeekCashbackRewardDocumentId(week, address);
   const weekCashbackRewardDocument = await model.findById(documentId, {}, { session });

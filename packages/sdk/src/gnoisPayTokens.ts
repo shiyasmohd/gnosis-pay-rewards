@@ -1,4 +1,4 @@
-import { Address, isAddressEqual, zeroAddress } from 'viem';
+import { Address, isAddressEqual } from 'viem';
 
 export type SerializableErc20TokenType = {
   address: Address;
