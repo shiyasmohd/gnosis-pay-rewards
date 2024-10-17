@@ -229,8 +229,10 @@ export async function startIndexing({
     });
 
     await handleGnosisPayRewardsDistributionLogs({
+      client,
       mongooseModels: {
         gnosisPayRewardDistributionModel,
+        weekCashbackRewardModel,
       },
       logs: gnosisPayRewardDistributionLogs,
       logger,
@@ -359,29 +361,90 @@ async function handleGnosisPayRewardsDistributionLogs({
   mongooseModels,
   logger,
   logs,
-}: {
-  logs: Awaited<ReturnType<typeof getGnosisPayRewardDistributionLogs>>;
-  mongooseModels: Parameters<typeof processGnosisPayRewardDistributionLog>[0]['mongooseModels'];
-  logger: ReturnType<typeof createMongooseLogger>;
-}) {
+  client,
+}: WithLogger<
+  Omit<Parameters<typeof processGnosisPayRewardDistributionLog>[0], 'log'> & {
+    logs: LogsType<typeof getGnosisPayRewardDistributionLogs>;
+  }
+>) {
+  // Set of blocks to update
+  const weekIdsSet = new Set<string>();
+  const addressesPerWeek = new Map<
+    string,
+    {
+      receivedRewardsCount: number;
+      notReceivedRewardsCount: number;
+    }
+  >();
+
   for (const log of logs) {
     try {
-      const { error } = await processGnosisPayRewardDistributionLog({
+      const { error, data } = await processGnosisPayRewardDistributionLog({
         log,
         mongooseModels,
+        client,
       });
 
       if (error) throw error;
+
+      if (data.week !== null) {
+        const weekId = data.week;
+        weekIdsSet.add(data.week);
+
+        const weekData = addressesPerWeek.get(weekId) ?? {
+          receivedRewardsCount: 0,
+          notReceivedRewardsCount: 0,
+        };
+
+        weekData.receivedRewardsCount++;
+        addressesPerWeek.set(weekId, weekData);
+      }
     } catch (e) {
       handleError(logger, e as Error, log as any);
     }
+  }
+
+  // For each week id, update all the addresses that have not received a transaction to 0
+  for (const week of Array.from(weekIdsSet) as WeekIdFormatType[]) {
+    try {
+      // Set each address that has not received a reward for the week to 0
+      const query = {
+        week,
+        $and: [{ earnedReward: { $exists: false } }, { earnedReward: null }],
+      };
+
+      const queryResult = await mongooseModels.weekCashbackRewardModel.updateMany(query, {
+        $set: {
+          earnedReward: 0,
+        },
+      });
+
+      const weekData = addressesPerWeek.get(week) ?? {
+        receivedRewardsCount: 0,
+        notReceivedRewardsCount: 0,
+      };
+
+      weekData.notReceivedRewardsCount += queryResult.modifiedCount;
+      addressesPerWeek.set(week, weekData);
+    } catch (e) {
+      handleError(logger, e as Error, { blockNumber: 0n, eventName: 'none', transactionHash: 'none' });
+    }
+  }
+
+  // Log the results
+  for (const [week, { receivedRewardsCount, notReceivedRewardsCount }] of addressesPerWeek) {
+    try {
+    const message = `Week ${week} rewards distribution: ${receivedRewardsCount} received, ${notReceivedRewardsCount} not received`;
+    console.log(message);
+      await logger.logDebug({ message });
+    } catch (e) {}
   }
 }
 
 function handleError(
   logger: ReturnType<typeof createMongooseLogger>,
   error: Error,
-  logish: { eventName: string; transactionHash: string; blockNumber: number },
+  logish: { eventName: string; transactionHash: string; blockNumber: bigint }
 ) {
   if (error.cause !== 'LOG_ALREADY_PROCESSED') {
     console.error(error);
@@ -389,10 +452,19 @@ function handleError(
 
   logger.log({
     level: error.cause === 'LOG_ALREADY_PROCESSED' ? LogLevel.WARN : LogLevel.ERROR,
-    message: `Error processing ${logish.eventName} log (${logish.transactionHash}) at #${logish.blockNumber} with error: ${error.message}`,
+    message: `Error processing ${logish.eventName} log (${logish.transactionHash}) at block ${logish.blockNumber} with error: ${error.message}`,
     metadata: {
       originalError: error.message,
-      log: logish,
+      log: {
+        ...logish,
+        blockNumber: Number(logish.blockNumber),
+      },
     },
   });
 }
+
+type WithLogger<T> = T & {
+  logger: ReturnType<typeof createMongooseLogger>;
+};
+
+type LogsType<FunctionType extends (...args: any[]) => unknown> = Awaited<ReturnType<FunctionType>>;
