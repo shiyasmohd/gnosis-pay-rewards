@@ -1,4 +1,10 @@
-import { gnosisPayStartBlock, bigMath, gnosisPayTokens, IndexerStateAtomType } from '@karpatkey/gnosis-pay-rewards-sdk';
+import {
+  gnosisPayStartBlock,
+  bigMath,
+  gnosisPayTokens,
+  IndexerStateAtomType,
+  WeekIdFormatType,
+} from '@karpatkey/gnosis-pay-rewards-sdk';
 import {
   createGnosisPayTransactionModel,
   createTokenModel,
@@ -76,8 +82,6 @@ export async function startIndexing({
     weekMetricsSnapshotModel,
   } = mongooseModels;
 
-  console.log('Migrating Gnosis Pay tokens to database');
-
   console.log('Starting indexing');
 
   // Initialize the latest block
@@ -113,9 +117,9 @@ export async function startIndexing({
         fromBlockNumber,
         toBlockNumber,
       }));
-      console.log(`Resuming indexing from #${fromBlockNumber}`);
+      console.log(`Resuming indexing from ${fromBlockNumber}`);
     } else {
-      console.warn(`No pending rewards found, starting from the beginning at #${fromBlockNumberInitial}`);
+      console.warn(`No transactions found, starting from the beginning at block ${fromBlockNumberInitial}`);
     }
   } else {
     const session = await mongooseConnection.startSession();
@@ -179,7 +183,7 @@ export async function startIndexing({
     const { fromBlockNumber, toBlockNumber, latestBlockNumber } = getIndexerState();
 
     try {
-      const message = `Fetching logs from #${fromBlockNumber} to #${toBlockNumber}`;
+      const message = `Fetching logs from ${fromBlockNumber} to ${toBlockNumber}`;
       console.log(message);
       await logger.logDebug({ message });
     } catch (e) {}
@@ -227,7 +231,6 @@ export async function startIndexing({
       },
       logs: gnosisTokenTransferLogs,
       logger,
-      socketIoServer,
     });
 
     await handleGnosisPayRewardsDistributionLogs({
@@ -269,7 +272,7 @@ export async function startIndexing({
       const targetBlockNumber = toBlockNumber + fetchBlockSize + 3n;
 
       try {
-        const message = `Waiting for #${targetBlockNumber} to continue indexing`;
+        const message = `Waiting for block ${targetBlockNumber} to continue indexing`;
         console.log(message);
         await logger.logDebug({ message });
       } catch (e) {}
@@ -294,16 +297,15 @@ async function handleBatchLogs({
   socketIoServer,
   logger,
   logs,
-}: {
+}: WithLogger<{
   logs: (
     | Awaited<ReturnType<typeof getGnosisPaySpendLogs>>[0]
     | Awaited<ReturnType<typeof getGnosisPayRefundLogs>>[0]
   )[];
   client: PublicClient<Transport, typeof gnosis>;
   mongooseModels: Parameters<typeof processSpendLog>[0]['mongooseModels'];
-  logger: ReturnType<typeof createMongooseLogger>;
   socketIoServer: ReturnType<typeof buildSocketIoServer>;
-}) {
+}>) {
   for (const log of logs) {
     try {
       if (log.eventName === 'Spend') {
@@ -346,13 +348,11 @@ async function handleGnosisTokenTransferLogs({
   mongooseModels,
   logger,
   logs,
-}: {
-  logs: Awaited<ReturnType<typeof getGnosisTokenTransferLogs>>;
-  client: PublicClient<Transport, typeof gnosis>;
-  mongooseModels: Parameters<typeof processGnosisTokenTransferLog>[0]['mongooseModels'];
-  logger: ReturnType<typeof createMongooseLogger>;
-  socketIoServer: ReturnType<typeof buildSocketIoServer>;
-}) {
+}: WithLogger<
+  Omit<Parameters<typeof processGnosisTokenTransferLog>[0], 'log'> & {
+    logs: LogsType<typeof getGnosisTokenTransferLogs>;
+  }
+>) {
   for (const log of logs) {
     try {
       const { error } = await processGnosisTokenTransferLog({
