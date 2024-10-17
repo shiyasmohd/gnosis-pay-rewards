@@ -6,7 +6,7 @@ import {
   circleUsdcToken,
 } from '@karpatkey/gnosis-pay-rewards-sdk';
 
-import { erc20TransferEventAbiItem, GnosisPayGetLogsParams } from './commons';
+import { erc20TransferEventAbiItem, GnosisPayGetLogsParams } from './commons.js';
 
 export async function getGnosisPayRefundLogs({
   client,

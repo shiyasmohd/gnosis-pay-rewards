@@ -1,6 +1,6 @@
 import { gnoToken, gnosisPayRewardDistributionSafeAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { erc20Abi } from 'viem';
-import { GnosisPayGetLogsParams } from './commons';
+import { GnosisPayGetLogsParams } from './commons.js';
 
 export async function getGnosisPayRewardDistributionLogs({
   client,

@@ -1,6 +1,6 @@
 import { Address, PublicClient, Transport } from 'viem';
 import { gnosis } from 'viem/chains';
-import { gnosisPaySafeAvatarFunctionAbiItem } from './commons';
+import { gnosisPaySafeAvatarFunctionAbiItem } from './commons.js';
 
 export async function getGnosisPaySafeAddressFromModule({
   rolesModuleAddress,

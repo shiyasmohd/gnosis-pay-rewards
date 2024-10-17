@@ -1,5 +1,5 @@
 import { gnosisPaySpendAddress, gnosisPaySpenderModuleAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
-import { GnosisPayGetLogsParams } from './commons';
+import { GnosisPayGetLogsParams } from './commons.js';
 
 export async function getGnosisPaySpendLogs({
   client,

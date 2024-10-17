@@ -1,7 +1,7 @@
 import { gnosisPayOgNftAddress } from '@karpatkey/gnosis-pay-rewards-sdk';
 import { zeroAddress } from 'viem';
 
-import { erc721TransferEventAbiItem, GnosisPayGetLogsParams } from './commons';
+import { erc721TransferEventAbiItem, GnosisPayGetLogsParams } from './commons.js';
 
 export async function getGnosisPayClaimOgNftLogs({
   client,
