@@ -39,8 +39,10 @@ export async function processGnosisPayRewardDistributionLog({
       });
     }
 
-    if (!log.args.to || !isAddress(log.args.to)) {
-      throw new Error(`Invalid to address: ${log.args.to}`, {
+    const safeAddress = log.args.to.toLowerCase() as Address;
+
+    if (!safeAddress || !isAddress(safeAddress)) {
+      throw new Error(`Invalid to address: ${safeAddress}`, {
         cause: 'NOT_ADDRESS',
       });
     }
@@ -50,7 +52,7 @@ export async function processGnosisPayRewardDistributionLog({
       client,
     });
 
-    const documentId = toGnosisPayRewardDistributionDocumentId(transactionHash, log.args.to as Address);
+    const documentId = toGnosisPayRewardDistributionDocumentId(transactionHash, safeAddress);
     // Get the last week id
     // Distributions are for the last week happen on the current week, so we roll back one week
     const lastWeekId = toWeekId(block.timestamp, 1);
@@ -72,23 +74,28 @@ export async function processGnosisPayRewardDistributionLog({
         amount: Number(formatUnits(log.args.value as bigint, gnoToken.decimals)),
         blockNumber: Number(blockNumber),
         transactionHash,
-        safe: log.args.to.toLowerCase() as Address,
+        safe: safeAddress,
         week: lastWeekId,
       });
 
     await distributionDocument.save({ session: mongooseSession });
 
+    // Update the week cashback reward document
     await mongooseModels.weekCashbackRewardModel.findOneAndUpdate(
       {
         week: lastWeekId,
-        safe: log.args.to.toLowerCase() as Address,
+        safe: safeAddress,
       },
       {
         $set: {
           earnedReward: distributionDocument.amount,
         },
       },
+      { session: mongooseSession },
     );
+
+    await mongooseSession.commitTransaction();
+    await mongooseSession.endSession();
 
     const distributionJson = distributionDocument.toJSON();
 
