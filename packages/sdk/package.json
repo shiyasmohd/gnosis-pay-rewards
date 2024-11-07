@@ -39,7 +39,7 @@
     "build": "pnpm clean && rollup -c",
     "test": "jest --passWithNoTests",
     "codegen": "echo 'No codegen for this package'",
-    "prepare": "pnpm clean && pnpm build"
+    "prepublishOnly": "pnpm test && pnpm build"
   },
   "dependencies": {
     "debug": "^4.3.4"
@@ -71,5 +71,10 @@
     "dayjs": "^1.11.7",
     "mongoose": "^8.5.1",
     "viem": "2.7.16"
-  }
+  },
+  "files": [
+    "src",
+    "dist",
+    "package.json"
+  ]
 }
