@@ -6,7 +6,7 @@ import { Spend } from '../generated/GnosisPaySpender/GnosisPaySpender';
 import { getGnosisPaySafeAddressFromRolesModule } from './gp/getGnosisPaySafeAddressFromRolesModule';
 import { getOrCreateGnosisTokenBalanceSnapshot } from './gnosisTokenBalanceSnapshot';
 import { timestampToWeekId } from './timestampToWeekId';
-import { gnosisPaySpendAddress, tokenInfos } from './constants';
+import { gnosisPaySpendAddress } from './constants';
 import { isTokenSupported } from './isTokenSupported';
 import { getTokenUsdPrice } from './oracle';
 import { areTokensMigrated, createTokenEntity, migrateTokens } from './createTokenEntity';
@@ -148,7 +148,7 @@ function toGnosisSafeWeeklySnapshotEntityId(week: string, safe: Address): string
  * It migrates all the tokens to the database and starts the indexing for token Transfer events
  * @param block
  */
-export function handleBlock(block: ethereum.Block): void {
+export function handleOnce(block: ethereum.Block): void {
   if (areTokensMigrated()) {
     return;
   }
