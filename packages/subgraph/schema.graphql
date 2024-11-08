@@ -1,10 +1,3 @@
-type ExampleEntity @entity {
-  id: Bytes!
-  count: BigInt!
-  owner: Bytes! # address
-  spender: Bytes! # address
-}
-
 type Token @entity {
   id: Bytes!
   address: Bytes!
@@ -20,6 +13,9 @@ enum TransactionType {
   REFUND
 }
 
+"""
+A transaction for a safe
+"""
 type GnosisPayTransaction @entity {
   id: Bytes!
   safe: GnosisPaySafe!
@@ -38,40 +34,73 @@ type GnosisPayTransaction @entity {
   gnoBalance: BigInt!
 }
 
+"""
+The metrics for a safe for a week
+"""
 type GnosisPaySafeWeekSnapshot @entity {
   "The id is the week and the safe address in the format of <week>/<safeAddress>"
   id: String!
   safe: GnosisPaySafe!
-  week: Int!
+  week: String!
   "The net USD volume for the week"
   netUsdVolume: BigInt!
-  "The amount of GNO tokens that the safe has in its wallet at the end of the week"
-  gnoBalance: BigInt!
+  "The snapshots of the GNO balance for the week"
+  gnoBalanceSnapshots: [GnosisTokenBalanceSnapshot!]!
   "The minimum GNO balance for the week"
-  minGnoBalance: BigInt
+  minGnoBalance: BigInt!
   "The maximum GNO balance for the week"
-  maxGnoBalance: BigInt
+  maxGnoBalance: BigInt!
   transactions: [GnosisPayTransaction!]!
   transactionCount: Int!
 }
 
+"""
+The metrics for a week
+"""
 type WeekMetrics @entity {
+  "The id is the week in the format of YYYY-MM-DD where MM is the Sunday of the week OR null if the week is not yet known"
   id: String!
-  week: Int!
+  "The week in the format of YYYY-MM-DD where MM is the Sunday of the week OR null if the week is not yet known"
+  week: String!
   "The net USD volume for the week"
   netUsdVolume: BigInt!
-  "The amount of GNO tokens that the safe has in its wallet at the end of the week"
-  gnoBalance: BigInt!
-  "The minimum GNO balance for the week"
-  minGnoBalance: BigInt
-  "The maximum GNO balance for the week"
-  maxGnoBalance: BigInt
+  "The number of safe addresses that have been created in the week"
+  transactions: [GnosisPayTransaction!]!
   transactionCount: Int!
 }
 
 type GnosisPaySafe @entity {
-  id: Bytes!
+  id: String!
   address: Bytes!
-  owner: [Bytes!]!
+  owners: [Bytes!]!
   transactions: [GnosisPayTransaction!]! @derivedFrom(field: "safe")
+  gnoBalanceSnapshots: [GnosisTokenBalanceSnapshot!]! @derivedFrom(field: "safe")
+  rewards: [GnosisPayRewardDistribution!]! @derivedFrom(field: "safe")
+}
+
+type GnosisTokenBalanceSnapshot @entity {
+  "The id is the block number and the safe address in the format of <blockNumber>/<safeAddress>"
+  id: String!
+  safe: GnosisPaySafe!
+  balance: BigInt!
+  "The week in the format of YYYY-MM-DD where MM is the Sunday of the week OR null if the week is not yet known"
+  week: String
+  balanceRaw: BigDecimal!
+  blockNumber: Int!
+  blockTimestamp: Int!
+}
+
+"""
+A reward distribution for a safe
+"""
+type GnosisPayRewardDistribution @entity {
+  id: Bytes!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  "The amount of GNO tokens that the user has in their wallet at the time of the transaction"
+  amount: BigInt!
+  transactionHash: Bytes!
+  safe: GnosisPaySafe!
+  "The week in the format of YYYY-MM-DD where MM is the Sunday of the week OR null if the week is not yet known"
+  week: String
 }
