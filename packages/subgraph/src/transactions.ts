@@ -1,21 +1,22 @@
-import { Transfer } from '../generated/EuroToken/ERC20';
-import { Spend } from '../generated/GnosisPaySpender/Spender';
-import { GnosisPayTransaction, GnosisPaySafeWeekSnapshot } from '../generated/schema';
-import { gnosisPaySpendAddress } from './constants';
+import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts';
+import { Transfer } from '../generated/templates/GnosisPayToken/Erc20';
+
+import { GnosisPayTransaction, GnosisPaySafeWeekSnapshot, GnosisTokenBalanceSnapshot } from '../generated/schema';
+import { Spend } from '../generated/GnosisPaySpender/GnosisPaySpender';
+import { getGnosisPaySafeAddressFromRolesModule } from './gp/getGnosisPaySafeAddressFromRolesModule';
+import { getOrCreateGnosisTokenBalanceSnapshot } from './gnosisTokenBalanceSnapshot';
+import { timestampToWeekId } from './timestampToWeekId';
+import { gnosisPaySpendAddress, tokenInfos } from './constants';
 import { isTokenSupported } from './isTokenSupported';
 import { getTokenUsdPrice } from './oracle';
-import { createTokenEntity } from './createTokenEntity';
-import { getGnosisPaySafeAddressFromRolesModule } from './gp/getGnosisPaySafeAddressFromRolesModule';
-import { getGnoTokenBalance } from './getGnoTokenBalance';
-import { Address, BigInt } from '@graphprotocol/graph-ts';
-import { timestampToWeekId } from './timestampToWeekId';
+import { areTokensMigrated, createTokenEntity, migrateTokens } from './createTokenEntity';
 
 export function handleTransfer(event: Transfer): void {
   if (!isTokenSupported(event.address)) {
     return;
   }
 
-  if (event.params.from != gnosisPaySpendAddress) {
+  if (!event.params.from.equals(gnosisPaySpendAddress)) {
     return;
   }
 
@@ -25,7 +26,11 @@ export function handleTransfer(event: Transfer): void {
 
   const gnosisPaySafeAddress = event.params.to;
   // Get the current gno balance of the safe
-  const gnoBalance = getGnoTokenBalance(gnosisPaySafeAddress);
+  const gnoBalanceSnapshot = getOrCreateGnosisTokenBalanceSnapshot(
+    event.block.number,
+    event.block.timestamp,
+    gnosisPaySafeAddress
+  );
   // Refund value
   const value = event.params.value;
   const valueUsd = tokenUsdPrice.times(value);
@@ -36,9 +41,9 @@ export function handleTransfer(event: Transfer): void {
   gnosisPayTransactionEntity.valueUsd = valueUsd;
   gnosisPayTransactionEntity.blockNumber = event.block.number;
   gnosisPayTransactionEntity.timestamp = event.block.timestamp;
-  gnosisPayTransactionEntity.safe = gnosisPaySafeAddress;
+  gnosisPayTransactionEntity.safe = gnosisPaySafeAddress.toString();
   gnosisPayTransactionEntity.type = 'REFUND';
-  gnosisPayTransactionEntity.gnoBalance = gnoBalance;
+  gnosisPayTransactionEntity.gnoBalance = gnoBalanceSnapshot.balance;
   gnosisPayTransactionEntity.save();
   updateSafeAddressWeekSnapshot(gnosisPaySafeAddress, gnosisPayTransactionEntity);
 }
@@ -46,13 +51,17 @@ export function handleTransfer(event: Transfer): void {
 export function handleSpend(event: Spend): void {
   const tokenAddress = event.params.asset;
   const tokenEntity = createTokenEntity(tokenAddress);
-  const tokenUsdPrice = getTokenUsdPrice(tokenEntity.oracle);
+  const tokenUsdPrice = getTokenUsdPrice(Address.fromBytes(tokenEntity.oracle));
 
   const value = event.params.amount;
   const valueUsd = tokenUsdPrice.times(value);
 
   const gnosisPaySafeAddress = getGnosisPaySafeAddressFromRolesModule(event.params.account);
-  const gnoBalance = getGnoTokenBalance(gnosisPaySafeAddress);
+  const gnoBalanceSnapshot = getOrCreateGnosisTokenBalanceSnapshot(
+    event.block.number,
+    event.block.timestamp,
+    gnosisPaySafeAddress
+  );
 
   const gnosisPayTransactionEntity = new GnosisPayTransaction(event.transaction.hash);
   gnosisPayTransactionEntity.token = tokenEntity.id;
@@ -60,9 +69,9 @@ export function handleSpend(event: Spend): void {
   gnosisPayTransactionEntity.valueUsd = valueUsd;
   gnosisPayTransactionEntity.blockNumber = event.block.number;
   gnosisPayTransactionEntity.timestamp = event.block.timestamp;
-  gnosisPayTransactionEntity.safe = gnosisPaySafeAddress;
+  gnosisPayTransactionEntity.safe = gnosisPaySafeAddress.toString();
   gnosisPayTransactionEntity.type = 'SPEND';
-  gnosisPayTransactionEntity.gnoBalance = gnoBalance;
+  gnosisPayTransactionEntity.gnoBalance = gnoBalanceSnapshot.balance;
   gnosisPayTransactionEntity.save();
   updateSafeAddressWeekSnapshot(gnosisPaySafeAddress, gnosisPayTransactionEntity);
 }
@@ -74,16 +83,16 @@ export function updateSafeAddressWeekSnapshot(
   const ZERO = BigInt.fromI32(0);
 
   const weekId = timestampToWeekId(recentGnosisPayTransaction.timestamp);
-  const entityId = `${safeAddress}-${weekId}`;
+  const entityId = toGnosisSafeWeeklySnapshotEntityId(weekId, safeAddress);
 
   let safeAddressWeekSnapshot = GnosisPaySafeWeekSnapshot.load(entityId);
 
   if (safeAddressWeekSnapshot == null) {
     safeAddressWeekSnapshot = new GnosisPaySafeWeekSnapshot(entityId);
-    safeAddressWeekSnapshot.safe = safeAddress;
+    safeAddressWeekSnapshot.safe = safeAddress.toString();
     safeAddressWeekSnapshot.transactions = [];
     safeAddressWeekSnapshot.transactionCount = 0;
-    safeAddressWeekSnapshot.gnoBalance = ZERO;
+    safeAddressWeekSnapshot.gnoBalanceSnapshots = [];
     safeAddressWeekSnapshot.minGnoBalance = ZERO;
     safeAddressWeekSnapshot.maxGnoBalance = ZERO;
     safeAddressWeekSnapshot.netUsdVolume = ZERO;
@@ -101,21 +110,48 @@ export function updateSafeAddressWeekSnapshot(
     );
   }
 
-  if (
-    safeAddressWeekSnapshot.maxGnoBalance !== null &&
-    recentGnosisPayTransaction.gnoBalance.gt(safeAddressWeekSnapshot.maxGnoBalance)
-  ) {
-    safeAddressWeekSnapshot.maxGnoBalance = recentGnosisPayTransaction.gnoBalance;
+  const gnosisTokenBalanceSnapshot = getOrCreateGnosisTokenBalanceSnapshot(
+    recentGnosisPayTransaction.blockNumber,
+    recentGnosisPayTransaction.timestamp,
+    safeAddress
+  );
+
+  // Push the snapshot to the array if it's not already there
+  if (safeAddressWeekSnapshot.gnoBalanceSnapshots.indexOf(gnosisTokenBalanceSnapshot.id) === -1) {
+    safeAddressWeekSnapshot.gnoBalanceSnapshots.push(gnosisTokenBalanceSnapshot.id);
   }
 
-  if (
-    safeAddressWeekSnapshot.minGnoBalance !== null &&
-    recentGnosisPayTransaction.gnoBalance.lt(safeAddressWeekSnapshot.minGnoBalance)
-  ) {
-    safeAddressWeekSnapshot.minGnoBalance = recentGnosisPayTransaction.gnoBalance;
-  }
+  let minGnoBalance = safeAddressWeekSnapshot.minGnoBalance;
+  let maxGnoBalance = safeAddressWeekSnapshot.maxGnoBalance;
 
-  safeAddressWeekSnapshot.gnoBalance = recentGnosisPayTransaction.gnoBalance;
+  // Among the snapshots, find the min and max GNO balance
+  for (let i = 0; i < safeAddressWeekSnapshot.gnoBalanceSnapshots.length; i++) {
+    const snapshot = GnosisTokenBalanceSnapshot.load(safeAddressWeekSnapshot.gnoBalanceSnapshots[i]);
+    if (snapshot != null && snapshot.balance.lt(minGnoBalance)) {
+      minGnoBalance = snapshot.balance;
+    }
+    if (snapshot != null && snapshot.balance.gt(maxGnoBalance)) {
+      maxGnoBalance = snapshot.balance;
+    }
+  }
 
   safeAddressWeekSnapshot.save();
+}
+
+function toGnosisSafeWeeklySnapshotEntityId(week: string, safe: Address): string {
+  return `${week}/${safe.toString().toLowerCase()}`;
+}
+
+/**
+ * Handle the block event
+ * This function is called once when the subgraph is deployed,
+ * It migrates all the tokens to the database and starts the indexing for token Transfer events
+ * @param block
+ */
+export function handleBlock(block: ethereum.Block): void {
+  if (areTokensMigrated()) {
+    return;
+  }
+
+  migrateTokens();
 }

@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import { Address, BigInt } from '@graphprotocol/graph-ts';
-import { Oracle as OracleContract } from '../generated/EuroToken/Oracle';
-
+import { PriceOracle as PriceOracleContract } from '../generated/templates/GnosisPayToken/PriceOracle';
 
 export function getTokenUsdPrice(tokenOracleAddress: Address): BigInt {
-  const tokenOracleContract = OracleContract.bind(tokenOracleAddress);
+  const tokenOracleContract = PriceOracleContract.bind(tokenOracleAddress);
 
   const roundData = tokenOracleContract.latestRoundData();
 

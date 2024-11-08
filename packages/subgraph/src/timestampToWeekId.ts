@@ -26,6 +26,11 @@ const DAYS_IN_MONTH = [
   BigInt.fromI32(31),
 ];
 
+/**
+ * Converts a timestamp to a week ID in the format of YYYY-MM-DD where MM is the Sunday of the week.
+ * @param timestamp - The timestamp to convert.
+ * @returns The week ID in the format of YYYY-MM-DD.
+ */
 export function timestampToWeekId(timestamp: BigInt): string {
   // Calculate the number of days since the Unix epoch (January 1, 1970)
   let daysSinceEpoch = mathFloor(timestamp.div(SECONDS_IN_A_DAY));
