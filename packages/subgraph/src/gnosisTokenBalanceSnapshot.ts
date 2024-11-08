@@ -1,6 +1,6 @@
 import { BigInt, Address } from '@graphprotocol/graph-ts';
 import { GnosisTokenBalanceSnapshot } from '../generated/schema';
-import { Erc20 } from '../generated/GnosisPaySpender/Erc20';
+import { Erc20 } from '../generated/templates/GnosisPayToken/Erc20';
 import { timestampToWeekId } from './timestampToWeekId';
 import { gnoToken } from './constants';
 
